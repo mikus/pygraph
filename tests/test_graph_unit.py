@@ -579,3 +579,220 @@ def test_graph_edge_operations_atomic():
     # Verify graph state is unchanged (atomic operation)
     assert graph.edges() == initial_edges
     assert graph.num_edges() == initial_count
+
+
+# Analysis Method Tests (RED phase - should fail)
+
+
+@pytest.mark.unit
+def test_graph_neighbors_returns_correct_set():
+    """Test that neighbors() returns correct set of adjacent vertices."""
+    graph = Graph(directed=False)
+
+    # Add vertices
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex("C")
+    graph.add_vertex("D")
+
+    # Add edges: A-B, A-C, B-C
+    graph.add_edge("A", "B", weight=1.0)
+    graph.add_edge("A", "C", weight=1.0)
+    graph.add_edge("B", "C", weight=1.0)
+
+    # Check neighbors
+    neighbors_a = graph.neighbors("A")
+    assert neighbors_a == {"B", "C"}, f"A should have neighbors B and C, got {neighbors_a}"
+
+    neighbors_b = graph.neighbors("B")
+    assert neighbors_b == {"A", "C"}, f"B should have neighbors A and C, got {neighbors_b}"
+
+    neighbors_c = graph.neighbors("C")
+    assert neighbors_c == {"A", "B"}, f"C should have neighbors A and B, got {neighbors_c}"
+
+    neighbors_d = graph.neighbors("D")
+    assert neighbors_d == set(), f"D should have no neighbors, got {neighbors_d}"
+
+
+@pytest.mark.unit
+def test_graph_neighbors_directed():
+    """Test that neighbors() returns outgoing neighbors for directed graphs."""
+    graph = Graph(directed=True)
+
+    # Add vertices
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex("C")
+
+    # Add directed edges: A->B, B->C, C->A
+    graph.add_edge("A", "B", weight=1.0)
+    graph.add_edge("B", "C", weight=1.0)
+    graph.add_edge("C", "A", weight=1.0)
+
+    # Check neighbors (outgoing edges only)
+    neighbors_a = graph.neighbors("A")
+    assert neighbors_a == {"B"}, f"A should have neighbor B (outgoing), got {neighbors_a}"
+
+    neighbors_b = graph.neighbors("B")
+    assert neighbors_b == {"C"}, f"B should have neighbor C (outgoing), got {neighbors_b}"
+
+    neighbors_c = graph.neighbors("C")
+    assert neighbors_c == {"A"}, f"C should have neighbor A (outgoing), got {neighbors_c}"
+
+
+@pytest.mark.unit
+def test_graph_neighbors_nonexistent_vertex():
+    """Test that neighbors() raises VertexNotFoundError for non-existent vertex."""
+    graph = Graph()
+    graph.add_vertex("A")
+
+    with pytest.raises(VertexNotFoundError, match="Vertex 'nonexistent' not found"):
+        graph.neighbors("nonexistent")
+
+
+@pytest.mark.unit
+def test_graph_degree_undirected():
+    """Test that degree() works correctly for undirected graphs."""
+    graph = Graph(directed=False)
+
+    # Add vertices
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex("C")
+    graph.add_vertex("D")
+
+    # Add edges: A-B, A-C, B-C
+    graph.add_edge("A", "B", weight=1.0)
+    graph.add_edge("A", "C", weight=1.0)
+    graph.add_edge("B", "C", weight=1.0)
+
+    # Check degrees
+    assert graph.degree("A") == 2, "A should have degree 2"
+    assert graph.degree("B") == 2, "B should have degree 2"
+    assert graph.degree("C") == 2, "C should have degree 2"
+    assert graph.degree("D") == 0, "D should have degree 0 (isolated vertex)"
+
+
+@pytest.mark.unit
+def test_graph_degree_directed():
+    """Test that degree() works correctly for directed graphs (returns out-degree)."""
+    graph = Graph(directed=True)
+
+    # Add vertices
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex("C")
+
+    # Add directed edges: A->B, A->C, B->C
+    graph.add_edge("A", "B", weight=1.0)
+    graph.add_edge("A", "C", weight=1.0)
+    graph.add_edge("B", "C", weight=1.0)
+
+    # Check degrees (should return out-degree for directed graphs)
+    assert graph.degree("A") == 2, "A should have degree 2 (2 outgoing edges)"
+    assert graph.degree("B") == 1, "B should have degree 1 (1 outgoing edge)"
+    assert graph.degree("C") == 0, "C should have degree 0 (0 outgoing edges)"
+
+
+@pytest.mark.unit
+def test_graph_degree_nonexistent_vertex():
+    """Test that degree() raises VertexNotFoundError for non-existent vertex."""
+    graph = Graph()
+    graph.add_vertex("A")
+
+    with pytest.raises(VertexNotFoundError, match="Vertex 'nonexistent' not found"):
+        graph.degree("nonexistent")
+
+
+@pytest.mark.unit
+def test_graph_in_degree_directed():
+    """Test that in_degree() works correctly for directed graphs."""
+    graph = Graph(directed=True)
+
+    # Add vertices
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex("C")
+    graph.add_vertex("D")
+
+    # Add directed edges: A->B, A->C, B->C, D->C
+    graph.add_edge("A", "B", weight=1.0)
+    graph.add_edge("A", "C", weight=1.0)
+    graph.add_edge("B", "C", weight=1.0)
+    graph.add_edge("D", "C", weight=1.0)
+
+    # Check in-degrees
+    assert graph.in_degree("A") == 0, "A should have in-degree 0 (no incoming edges)"
+    assert graph.in_degree("B") == 1, "B should have in-degree 1 (1 incoming edge from A)"
+    assert graph.in_degree("C") == 3, "C should have in-degree 3 (3 incoming edges)"
+    assert graph.in_degree("D") == 0, "D should have in-degree 0 (no incoming edges)"
+
+
+@pytest.mark.unit
+def test_graph_out_degree_directed():
+    """Test that out_degree() works correctly for directed graphs."""
+    graph = Graph(directed=True)
+
+    # Add vertices
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex("C")
+    graph.add_vertex("D")
+
+    # Add directed edges: A->B, A->C, B->C, D->C
+    graph.add_edge("A", "B", weight=1.0)
+    graph.add_edge("A", "C", weight=1.0)
+    graph.add_edge("B", "C", weight=1.0)
+    graph.add_edge("D", "C", weight=1.0)
+
+    # Check out-degrees
+    assert graph.out_degree("A") == 2, "A should have out-degree 2 (2 outgoing edges)"
+    assert graph.out_degree("B") == 1, "B should have out-degree 1 (1 outgoing edge)"
+    assert graph.out_degree("C") == 0, "C should have out-degree 0 (no outgoing edges)"
+    assert graph.out_degree("D") == 1, "D should have out-degree 1 (1 outgoing edge)"
+
+
+@pytest.mark.unit
+def test_graph_in_degree_undirected_raises_error():
+    """Test that in_degree() raises error for undirected graphs."""
+    graph = Graph(directed=False)
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_edge("A", "B", weight=1.0)
+
+    # in_degree should only work on directed graphs
+    with pytest.raises(ValueError, match="in_degree.*directed"):
+        graph.in_degree("A")
+
+
+@pytest.mark.unit
+def test_graph_out_degree_undirected_raises_error():
+    """Test that out_degree() raises error for undirected graphs."""
+    graph = Graph(directed=False)
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_edge("A", "B", weight=1.0)
+
+    # out_degree should only work on directed graphs
+    with pytest.raises(ValueError, match="out_degree.*directed"):
+        graph.out_degree("A")
+
+
+@pytest.mark.unit
+def test_graph_in_degree_nonexistent_vertex():
+    """Test that in_degree() raises VertexNotFoundError for non-existent vertex."""
+    graph = Graph(directed=True)
+    graph.add_vertex("A")
+
+    with pytest.raises(VertexNotFoundError, match="Vertex 'nonexistent' not found"):
+        graph.in_degree("nonexistent")
+
+
+@pytest.mark.unit
+def test_graph_out_degree_nonexistent_vertex():
+    """Test that out_degree() raises VertexNotFoundError for non-existent vertex."""
+    graph = Graph(directed=True)
+    graph.add_vertex("A")
+
+    with pytest.raises(VertexNotFoundError, match="Vertex 'nonexistent' not found"):
+        graph.out_degree("nonexistent")

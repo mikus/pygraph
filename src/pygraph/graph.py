@@ -490,6 +490,182 @@ class Graph[V: Hashable]:
         edge_data = self._repr.get_edge_data(source, target)
         return edge_data
 
+    # Analysis Methods
+
+    def neighbors(self, vertex: V) -> set[V]:
+        """Get the neighbors of a vertex.
+
+        For directed graphs, returns vertices reachable by outgoing edges.
+        For undirected graphs, returns all adjacent vertices.
+
+        Args:
+            vertex: The vertex to get neighbors for
+
+        Returns:
+            Set of neighboring vertices
+
+        Raises:
+            VertexNotFoundError: If vertex is not in the graph
+
+        Examples:
+            >>> # Undirected graph
+            >>> graph = Graph[str](directed=False)
+            >>> graph.add_vertex("A")
+            >>> graph.add_vertex("B")
+            >>> graph.add_vertex("C")
+            >>> graph.add_edge("A", "B", weight=1.0)
+            >>> graph.add_edge("A", "C", weight=1.0)
+            >>> sorted(graph.neighbors("A"))
+            ['B', 'C']
+            >>> sorted(graph.neighbors("B"))
+            ['A']
+
+            >>> # Directed graph
+            >>> graph = Graph[str](directed=True)
+            >>> graph.add_vertex("A")
+            >>> graph.add_vertex("B")
+            >>> graph.add_vertex("C")
+            >>> graph.add_edge("A", "B", weight=1.0)
+            >>> graph.add_edge("B", "C", weight=1.0)
+            >>> sorted(graph.neighbors("A"))
+            ['B']
+            >>> sorted(graph.neighbors("B"))
+            ['C']
+            >>> graph.neighbors("C")
+            set()
+        """
+        self._validate_vertex_exists(vertex, "getting neighbors")
+        return self._repr.get_neighbors(vertex)
+
+    def degree(self, vertex: V) -> int:
+        """Get the degree of a vertex.
+
+        For undirected graphs, returns the number of edges connected to the vertex.
+        For directed graphs, returns the out-degree (number of outgoing edges).
+
+        Args:
+            vertex: The vertex to get degree for
+
+        Returns:
+            The degree of the vertex
+
+        Raises:
+            VertexNotFoundError: If vertex is not in the graph
+
+        Examples:
+            >>> # Undirected graph
+            >>> graph = Graph[str](directed=False)
+            >>> graph.add_vertex("A")
+            >>> graph.add_vertex("B")
+            >>> graph.add_vertex("C")
+            >>> graph.add_edge("A", "B", weight=1.0)
+            >>> graph.add_edge("A", "C", weight=1.0)
+            >>> graph.degree("A")
+            2
+            >>> graph.degree("B")
+            1
+
+            >>> # Directed graph (returns out-degree)
+            >>> graph = Graph[str](directed=True)
+            >>> graph.add_vertex("A")
+            >>> graph.add_vertex("B")
+            >>> graph.add_vertex("C")
+            >>> graph.add_edge("A", "B", weight=1.0)
+            >>> graph.add_edge("B", "C", weight=1.0)
+            >>> graph.degree("A")
+            1
+            >>> graph.degree("C")
+            0
+        """
+        self._validate_vertex_exists(vertex, "getting degree")
+        # Degree equals the number of neighbors
+        return len(self.neighbors(vertex))
+
+    def in_degree(self, vertex: V) -> int:
+        """Get the in-degree of a vertex (number of incoming edges).
+
+        This method only works for directed graphs. For undirected graphs,
+        use degree() instead.
+
+        Args:
+            vertex: The vertex to get in-degree for
+
+        Returns:
+            The in-degree of the vertex (number of incoming edges)
+
+        Raises:
+            VertexNotFoundError: If vertex is not in the graph
+            ValueError: If graph is not directed
+
+        Examples:
+            >>> # Directed graph
+            >>> graph = Graph[str](directed=True)
+            >>> graph.add_vertex("A")
+            >>> graph.add_vertex("B")
+            >>> graph.add_vertex("C")
+            >>> graph.add_edge("A", "B", weight=1.0)
+            >>> graph.add_edge("A", "C", weight=1.0)
+            >>> graph.add_edge("B", "C", weight=1.0)
+            >>> graph.in_degree("A")
+            0
+            >>> graph.in_degree("B")
+            1
+            >>> graph.in_degree("C")
+            2
+        """
+        if not self._directed:
+            raise ValueError("in_degree() only works on directed graphs. Use degree() for undirected graphs.")
+
+        self._validate_vertex_exists(vertex, "getting in-degree")
+
+        # Count edges where this vertex is the target
+        in_deg = 0
+        for edge in self.edges():
+            if edge.target == vertex:
+                in_deg += 1
+
+        return in_deg
+
+    def out_degree(self, vertex: V) -> int:
+        """Get the out-degree of a vertex (number of outgoing edges).
+
+        This method only works for directed graphs. For undirected graphs,
+        use degree() instead.
+
+        Args:
+            vertex: The vertex to get out-degree for
+
+        Returns:
+            The out-degree of the vertex (number of outgoing edges)
+
+        Raises:
+            VertexNotFoundError: If vertex is not in the graph
+            ValueError: If graph is not directed
+
+        Examples:
+            >>> # Directed graph
+            >>> graph = Graph[str](directed=True)
+            >>> graph.add_vertex("A")
+            >>> graph.add_vertex("B")
+            >>> graph.add_vertex("C")
+            >>> graph.add_edge("A", "B", weight=1.0)
+            >>> graph.add_edge("A", "C", weight=1.0)
+            >>> graph.add_edge("B", "C", weight=1.0)
+            >>> graph.out_degree("A")
+            2
+            >>> graph.out_degree("B")
+            1
+            >>> graph.out_degree("C")
+            0
+        """
+        if not self._directed:
+            raise ValueError("out_degree() only works on directed graphs. Use degree() for undirected graphs.")
+
+        self._validate_vertex_exists(vertex, "getting out-degree")
+
+        # For directed graphs, out-degree equals the number of neighbors
+        return len(self.neighbors(vertex))
+
     # Protocol Implementation
 
     def to_graph(self) -> Graph[V]:

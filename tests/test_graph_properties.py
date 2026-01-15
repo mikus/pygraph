@@ -621,3 +621,178 @@ def test_property_directed_edge_distinction(vertices, edge_index, weight):
         # Expected: add_edge or has_edge method doesn't exist yet (RED phase)
         # This test should fail until the methods are implemented
         pytest.fail("add_edge or has_edge method not implemented yet (expected in RED phase)")
+
+
+@pytest.mark.property
+@settings(max_examples=100)
+@given(
+    vertices=st.lists(st.integers(), min_size=1, max_size=10, unique=True),
+    directed=st.booleans(),
+    edge_pairs=st.lists(
+        st.tuples(st.integers(min_value=0, max_value=9), st.integers(min_value=0, max_value=9)),
+        min_size=0,
+        max_size=15,
+    ),
+)
+def test_property_neighbors_and_degree_consistency(vertices, directed, edge_pairs):
+    """Property: Neighbors and degree consistency.
+
+    Feature: graph-library, Property 12: For any graph and any vertex in the graph,
+    the degree of the vertex should equal the number of neighbors.
+
+    **Validates: Requirements B3.1, B3.2**
+
+    This test verifies that the degree() method returns a value consistent with
+    the number of neighbors returned by neighbors(). For undirected graphs, degree
+    equals the number of neighbors. For directed graphs, out_degree equals the
+    number of neighbors (outgoing edges).
+    """
+    # Skip if we don't have any vertices
+    if len(vertices) == 0:
+        return
+
+    # Create a graph with the specified directedness
+    graph = Graph(directed=directed)
+
+    # Add vertices
+    for vertex in vertices:
+        graph.add_vertex(vertex)
+
+    # Add edges based on edge_pairs
+    for source_idx, target_idx in edge_pairs:
+        # Map indices to actual vertices
+        source = vertices[source_idx % len(vertices)]
+        target = vertices[target_idx % len(vertices)]
+
+        # Skip self-loops for this test
+        if source == target:
+            continue
+
+        # Add edge if both vertices exist
+        try:
+            graph.add_edge(source, target, weight=1.0)
+        except Exception:  # pylint: disable=broad-except
+            # Skip if edge addition fails for any reason
+            continue
+
+    # Property: For each vertex, degree should equal number of neighbors
+    try:
+        for vertex in vertices:
+            # Get neighbors and degree
+            neighbors_set = graph.neighbors(vertex)
+            degree_value = graph.degree(vertex)
+
+            # Property: degree equals number of neighbors
+            assert len(neighbors_set) == degree_value, (
+                f"For vertex {vertex}, degree ({degree_value}) should equal "
+                f"number of neighbors ({len(neighbors_set)}). "
+                f"Neighbors: {neighbors_set}, "
+                f"Directed: {directed}"
+            )
+
+            # Additional consistency checks
+            # For undirected graphs, each neighbor should have this vertex as a neighbor
+            if not directed:
+                for neighbor in neighbors_set:
+                    neighbor_neighbors = graph.neighbors(neighbor)
+                    assert vertex in neighbor_neighbors, (
+                        f"In undirected graph, if {neighbor} is neighbor of {vertex}, "
+                        f"then {vertex} should be neighbor of {neighbor}"
+                    )
+
+    except AttributeError:
+        # Expected: neighbors() or degree() method doesn't exist yet (RED phase)
+        # This test should fail until the methods are implemented
+        pytest.fail("neighbors() or degree() method not implemented yet (expected in RED phase)")
+
+
+@pytest.mark.property
+@settings(max_examples=100)
+@given(
+    vertices=st.lists(st.integers(), min_size=2, max_size=10, unique=True),
+    edge_pairs=st.lists(
+        st.tuples(st.integers(min_value=0, max_value=9), st.integers(min_value=0, max_value=9)),
+        min_size=0,
+        max_size=15,
+    ),
+)
+def test_property_in_degree_and_out_degree(vertices, edge_pairs):
+    """Property: In-degree and out-degree relationship.
+
+    Feature: graph-library, Property 15: For any directed graph and any vertex,
+    the sum of in_degree and out_degree equals the total number of edges incident
+    to that vertex.
+
+    **Validates: Requirements B3.7**
+
+    This test verifies that for directed graphs, the in_degree (number of incoming
+    edges) plus the out_degree (number of outgoing edges) equals the total number
+    of edges connected to a vertex. This property only applies to directed graphs.
+    """
+    # Skip if we don't have at least 2 vertices
+    if len(vertices) < 2:
+        return
+
+    # Create a DIRECTED graph (property only applies to directed graphs)
+    graph = Graph(directed=True)
+
+    # Add vertices
+    for vertex in vertices:
+        graph.add_vertex(vertex)
+
+    # Add edges based on edge_pairs
+    for source_idx, target_idx in edge_pairs:
+        # Map indices to actual vertices
+        source = vertices[source_idx % len(vertices)]
+        target = vertices[target_idx % len(vertices)]
+
+        # Skip self-loops for this test
+        if source == target:
+            continue
+
+        # Add edge if both vertices exist
+        try:
+            graph.add_edge(source, target, weight=1.0)
+        except Exception:  # pylint: disable=broad-except
+            # Skip if edge addition fails for any reason
+            continue
+
+    # Property: For each vertex in directed graph, in_degree + out_degree = total incident edges
+    try:
+        for vertex in vertices:
+            # Get in-degree and out-degree
+            in_deg = graph.in_degree(vertex)
+            out_deg = graph.out_degree(vertex)
+
+            # Count actual incident edges manually for verification
+            incident_edges = 0
+            for edge in graph.edges():
+                if vertex in (edge.source, edge.target):
+                    incident_edges += 1
+
+            # Property: in_degree + out_degree should equal total incident edges
+            assert in_deg + out_deg == incident_edges, (
+                f"For vertex {vertex} in directed graph, "
+                f"in_degree ({in_deg}) + out_degree ({out_deg}) = {in_deg + out_deg} "
+                f"should equal total incident edges ({incident_edges})"
+            )
+
+            # Additional consistency checks
+            # in_degree should equal number of edges where vertex is target
+            expected_in_degree = sum(1 for edge in graph.edges() if edge.target == vertex)
+            assert in_deg == expected_in_degree, (
+                f"in_degree ({in_deg}) should equal number of incoming edges ({expected_in_degree}) "
+                f"for vertex {vertex}"
+            )
+
+            # out_degree should equal number of edges where vertex is source
+            expected_out_degree = sum(1 for edge in graph.edges() if edge.source == vertex)
+            assert out_deg == expected_out_degree, (
+                f"out_degree ({out_deg}) should equal number of outgoing edges ({expected_out_degree}) "
+                f"for vertex {vertex}"
+            )
+
+    except AttributeError:
+        # Expected: in_degree() or out_degree() method doesn't exist yet (RED phase)
+        # This test should fail until the methods are implemented
+        pytest.fail("in_degree() or out_degree() method not implemented yet (expected in RED phase)")
