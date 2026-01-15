@@ -85,50 +85,36 @@ def test_edge_metadata_preservation(source, target, weight, metadata):
 
 
 @pytest.mark.unit
-def test_edge_creation_with_default_weight():
-    """Test edge creation with default weight."""
-    # This import will fail initially because Edge class doesn't exist yet
+@pytest.mark.parametrize(
+    "weight,metadata,expected_weight,expected_metadata",
+    [
+        (None, None, 1.0, {}),  # Default weight
+        (5.5, None, 5.5, {}),  # Custom weight
+        (2.0, {"type": "highway", "speed_limit": 65}, 2.0, {"type": "highway", "speed_limit": 65}),  # With metadata
+    ],
+    ids=["default_weight", "custom_weight", "with_metadata"],
+)
+def test_edge_creation(weight, metadata, expected_weight, expected_metadata):
+    """Test edge creation with various parameters (consolidated test)."""
     from src.pygraph.edge import Edge
 
-    edge = Edge(source="A", target="B")
+    # Create edge with appropriate parameters
+    if weight is None and metadata is None:
+        edge = Edge(source="A", target="B")
+    elif metadata is None:
+        edge = Edge(source="A", target="B", weight=weight)
+    else:
+        edge = Edge(source="A", target="B", weight=weight, metadata=metadata)
 
-    # Default weight should be 1.0 according to design
-    assert edge.weight == 1.0
+    assert edge.weight == expected_weight
     assert edge.source == "A"
     assert edge.target == "B"
-    assert not edge.metadata
+    assert edge.metadata == expected_metadata
 
 
 @pytest.mark.unit
-def test_edge_creation_with_custom_weight():
-    """Test edge creation with custom weight."""
-    from src.pygraph.edge import Edge
-
-    edge = Edge(source="A", target="B", weight=5.5)
-
-    assert edge.weight == 5.5
-    assert edge.source == "A"
-    assert edge.target == "B"
-    assert not edge.metadata
-
-
-@pytest.mark.unit
-def test_edge_creation_with_metadata():
-    """Test edge creation with metadata."""
-    from src.pygraph.edge import Edge
-
-    metadata = {"type": "highway", "speed_limit": 65}
-    edge = Edge(source="A", target="B", weight=2.0, metadata=metadata)
-
-    assert edge.weight == 2.0
-    assert edge.source == "A"
-    assert edge.target == "B"
-    assert edge.metadata == metadata
-
-
-@pytest.mark.unit
-def test_edge_equality():
-    """Test edge equality comparison."""
+def test_edge_equality_and_hash():
+    """Test edge equality, hash, and set/dict behavior (consolidated test)."""
     from src.pygraph.edge import Edge
 
     edge1 = Edge(source="A", target="B", weight=1.0)
@@ -136,35 +122,36 @@ def test_edge_equality():
     edge3 = Edge(source="A", target="B", weight=2.0)
     edge4 = Edge(source="B", target="A", weight=1.0)
 
-    # Edges with same source, target, and weight should be equal
+    # Test equality
     assert edge1 == edge2
-
-    # Edges with different weights should not be equal
     assert edge1 != edge3
-
-    # Edges with different source/target should not be equal
     assert edge1 != edge4
 
-
-@pytest.mark.unit
-def test_edge_hash():
-    """Test edge hash for use in sets and dictionaries."""
-    from src.pygraph.edge import Edge
-
-    edge1 = Edge(source="A", target="B", weight=1.0)
-    edge2 = Edge(source="A", target="B", weight=1.0)
-    edge3 = Edge(source="A", target="B", weight=2.0)
-
-    # Equal edges should have same hash
+    # Test hash
     assert hash(edge1) == hash(edge2)
 
-    # Edges should be usable in sets
+    # Test set behavior
     edge_set = {edge1, edge2, edge3}
-    assert len(edge_set) == 2  # edge1 and edge2 are equal, so only 2 unique edges
+    assert len(edge_set) == 2  # edge1 and edge2 are equal
 
-    # Edges should be usable as dictionary keys
+    # Test dict behavior
     edge_dict = {edge1: "value1", edge3: "value2"}
     assert len(edge_dict) == 2
+
+    # Test metadata doesn't affect equality/hash
+    edge_with_meta1 = Edge("A", "B", weight=1.0, metadata={"color": "red"})
+    edge_with_meta2 = Edge("A", "B", weight=1.0, metadata={"color": "blue"})
+    edge_no_meta = Edge("A", "B", weight=1.0, metadata={})
+
+    assert edge_with_meta1 == edge_with_meta2
+    assert edge_with_meta1 == edge_no_meta
+    assert hash(edge_with_meta1) == hash(edge_with_meta2)
+    assert len({edge_with_meta1, edge_with_meta2, edge_no_meta}) == 1
+
+    # But metadata is still accessible and different
+    assert edge_with_meta1.metadata != edge_with_meta2.metadata
+    assert edge_with_meta1.metadata["color"] == "red"
+    assert edge_with_meta2.metadata["color"] == "blue"
 
 
 @pytest.mark.unit
@@ -183,6 +170,112 @@ def test_edge_non_hashable_vertices_raise_error():
     # Test with both non-hashable
     with pytest.raises(TypeError, match="Edge vertices must be hashable"):
         Edge(source=["A"], target=["B"])  # Both lists are not hashable
+
+
+@pytest.mark.unit
+def test_edge_directed_vs_undirected_equality():
+    """Test that directed and undirected edges have different equality behavior."""
+    from src.pygraph.edge import Edge
+
+    # Directed edges: order matters
+    directed_ab = Edge("A", "B", weight=1.0, directed=True)
+    directed_ba = Edge("B", "A", weight=1.0, directed=True)
+    assert directed_ab != directed_ba
+    assert hash(directed_ab) != hash(directed_ba)
+    assert len({directed_ab, directed_ba}) == 2
+
+    # Undirected edges: order doesn't matter
+    undirected_ab = Edge("A", "B", weight=1.0, directed=False)
+    undirected_ba = Edge("B", "A", weight=1.0, directed=False)
+    assert undirected_ab == undirected_ba
+    assert hash(undirected_ab) == hash(undirected_ba)
+    assert len({undirected_ab, undirected_ba}) == 1
+
+    # Directed and undirected edges are not equal even with same vertices
+    assert directed_ab != undirected_ab
+
+
+@pytest.mark.unit
+def test_edge_helper_methods():
+    """Test Edge helper methods (has_vertex, other_vertex)."""
+    from src.pygraph.edge import Edge
+
+    edge = Edge("A", "B", weight=2.0, directed=False)
+
+    # Test has_vertex
+    assert edge.has_vertex("A")
+    assert edge.has_vertex("B")
+    assert not edge.has_vertex("C")
+
+    # Test other_vertex
+    assert edge.other_vertex("A") == "B"
+    assert edge.other_vertex("B") == "A"
+
+    # Test other_vertex with invalid vertex
+    with pytest.raises(ValueError, match="Vertex .* is not part of this edge"):
+        edge.other_vertex("C")
+
+
+@pytest.mark.unit
+def test_edge_undirected_non_comparable_vertices():
+    """Test undirected edges with non-comparable vertices use hash-based ordering.
+
+    This tests the fallback behavior when vertices are hashable but not comparable.
+    The edge should still normalize to canonical order using hash values.
+    """
+    from src.pygraph.edge import Edge
+
+    # Create custom non-comparable but hashable class
+    class NonComparable:
+        """A hashable but non-comparable type."""
+
+        def __init__(self, value):
+            self.value = value
+
+        def __hash__(self):
+            return hash(self.value)
+
+        def __eq__(self, other):
+            return isinstance(other, NonComparable) and self.value == other.value
+
+        def __repr__(self):
+            return f"NonComparable({self.value})"
+
+    # Create two non-comparable vertices
+    vertex_a = NonComparable("A")
+    vertex_b = NonComparable("B")
+
+    # Create undirected edges in both orders
+    edge_ab = Edge(vertex_a, vertex_b, weight=1.0, directed=False)
+    edge_ba = Edge(vertex_b, vertex_a, weight=1.0, directed=False)
+
+    # Both edges should be normalized to the same canonical order
+    # They should be equal and have the same hash
+    assert edge_ab == edge_ba
+    assert hash(edge_ab) == hash(edge_ba)
+
+    # They should be the same edge in a set
+    assert len({edge_ab, edge_ba}) == 1
+
+
+@pytest.mark.unit
+def test_edge_undirected_self_loop():
+    """Test undirected edge where source equals target (self-loop).
+
+    Self-loops should not be normalized since source == target.
+    """
+    from src.pygraph.edge import Edge
+
+    # Create a self-loop
+    edge = Edge("A", "A", weight=1.0, directed=False)
+
+    # Source and target should remain the same
+    assert edge.source == "A"
+    assert edge.target == "A"
+
+    # Should be hashable and usable in sets
+    edge_set = {edge}
+    assert len(edge_set) == 1
 
 
 if __name__ == "__main__":

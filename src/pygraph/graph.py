@@ -18,7 +18,7 @@ from collections.abc import Hashable
 from typing import Literal
 
 from pygraph.edge import Edge
-from pygraph.exceptions import VertexNotFoundError
+from pygraph.exceptions import EdgeNotFoundError, VertexNotFoundError
 from pygraph.representations import AdjacencyList, AdjacencyMatrix, GraphRepresentation
 
 
@@ -168,10 +168,7 @@ class Graph[V: Hashable]:
             Traceback (most recent call last):
             VertexNotFoundError: Vertex nonexistent not found in graph
         """
-        if not self._repr.has_vertex(vertex):
-            available = sorted(self._repr.get_vertices()) if self._repr.get_vertices() else "none"
-            raise VertexNotFoundError(f"Vertex '{vertex}' not found in graph. Available vertices: {available}")
-
+        self._validate_vertex_exists(vertex, "removal")
         self._repr.remove_vertex(vertex)
 
     def _validate_vertex_hashable(self, vertex: V) -> None:
@@ -187,6 +184,52 @@ class Graph[V: Hashable]:
             hash(vertex)
         except TypeError as e:
             raise TypeError(f"Vertex must be hashable, got {type(vertex).__name__}: {vertex}") from e
+
+    def _validate_vertex_exists(self, vertex: V, operation: str = "operation") -> None:
+        """Validate that a vertex exists in the graph.
+
+        Args:
+            vertex: The vertex to validate
+            operation: Description of the operation being performed (for error message)
+
+        Raises:
+            VertexNotFoundError: If vertex is not in the graph
+        """
+        if not self._repr.has_vertex(vertex):
+            available = sorted(self._repr.get_vertices()) if self._repr.get_vertices() else "none"
+            raise VertexNotFoundError(
+                f"Vertex '{vertex}' not found in graph for {operation}. Available vertices: {available}"
+            )
+
+    def _validate_edge_vertices(self, source: V, target: V, operation: str = "operation") -> None:
+        """Validate that both source and target vertices exist in the graph.
+
+        This is a convenience method for edge operations that need to validate
+        both endpoints of an edge.
+
+        Args:
+            source: The source vertex to validate
+            target: The target vertex to validate
+            operation: Description of the operation being performed (for error message)
+
+        Raises:
+            VertexNotFoundError: If either source or target vertex is not in the graph
+        """
+        self._validate_vertex_exists(source, operation)
+        self._validate_vertex_exists(target, operation)
+
+    def _validate_edge_exists(self, source: V, target: V) -> None:
+        """Validate that an edge exists between two vertices.
+
+        Args:
+            source: The source vertex of the edge
+            target: The target vertex of the edge
+
+        Raises:
+            EdgeNotFoundError: If the edge doesn't exist in the graph
+        """
+        if not self._repr.has_edge(source, target):
+            raise EdgeNotFoundError(f"Edge ('{source}', '{target}') not found in graph")
 
     # Query Methods
 
@@ -210,10 +253,21 @@ class Graph[V: Hashable]:
     def edges(self) -> set[Edge[V]]:
         """Get all edges in the graph.
 
+        For undirected graphs, each edge is returned once (not both directions).
+        For directed graphs, each directed edge is returned separately.
+
         Returns:
             Set of all edges in the graph
+
+        Examples:
+            >>> graph = Graph[str](directed=False)
+            >>> graph.add_vertex("A")
+            >>> graph.add_vertex("B")
+            >>> graph.add_edge("A", "B", weight=1.0)
+            >>> len(graph.edges())
+            1
         """
-        return set(self._repr.get_edges())
+        return self._repr.get_edges()
 
     def num_vertices(self) -> int:
         """Get the number of vertices in the graph.
@@ -242,6 +296,199 @@ class Graph[V: Hashable]:
             Number of edges in the graph
         """
         return len(self.edges())
+
+    # Edge Operations
+
+    def add_edge(self, source: V, target: V, weight: float = 1.0, metadata: dict[str, any] | None = None) -> None:
+        """Add an edge to the graph.
+
+        This operation is idempotent - adding an existing edge has no effect.
+        Both source and target vertices must already exist in the graph.
+
+        For directed graphs, adds an edge from source to target.
+        For undirected graphs, adds a bidirectional edge between source and target.
+
+        Args:
+            source: The source vertex of the edge
+            target: The target vertex of the edge
+            weight: The weight of the edge (default: 1.0)
+            metadata: Optional metadata dictionary for the edge
+
+        Raises:
+            VertexNotFoundError: If source or target vertex is not in the graph
+
+        Examples:
+            >>> # Directed graph
+            >>> graph = Graph[str](directed=True)
+            >>> graph.add_vertex("A")
+            >>> graph.add_vertex("B")
+            >>> graph.add_edge("A", "B", weight=5.0)
+            >>> graph.has_edge("A", "B")
+            True
+            >>> graph.has_edge("B", "A")  # Reverse direction doesn't exist
+            False
+
+            >>> # Undirected graph
+            >>> graph = Graph[str](directed=False)
+            >>> graph.add_vertex("X")
+            >>> graph.add_vertex("Y")
+            >>> graph.add_edge("X", "Y", weight=3.0)
+            >>> graph.has_edge("X", "Y")
+            True
+            >>> graph.has_edge("Y", "X")  # Both directions work
+            True
+
+            >>> # Idempotent behavior
+            >>> graph.add_edge("X", "Y", weight=3.0)
+            >>> graph.num_edges()
+            1
+
+            >>> # With metadata
+            >>> metadata = {"type": "highway", "lanes": 4}
+            >>> graph.add_edge("X", "Y", weight=10.0, metadata=metadata)
+        """
+        # Validate both vertices exist
+        self._validate_edge_vertices(source, target, "edge addition")
+
+        # Add edge through representation (handles idempotency)
+        self._repr.add_edge(source, target, weight, metadata or {})
+
+    def remove_edge(self, source: V, target: V) -> None:
+        """Remove an edge from the graph.
+
+        This operation removes the edge between source and target vertices.
+        The vertices themselves remain in the graph.
+
+        For directed graphs, removes only the edge from source to target.
+        For undirected graphs, removes the bidirectional edge between vertices.
+
+        Args:
+            source: The source vertex of the edge
+            target: The target vertex of the edge
+
+        Raises:
+            EdgeNotFoundError: If the edge doesn't exist in the graph
+            VertexNotFoundError: If source or target vertex is not in the graph
+
+        Examples:
+            >>> # Directed graph
+            >>> graph = Graph[str](directed=True)
+            >>> graph.add_vertex("A")
+            >>> graph.add_vertex("B")
+            >>> graph.add_edge("A", "B", weight=1.0)
+            >>> graph.remove_edge("A", "B")
+            >>> graph.has_edge("A", "B")
+            False
+            >>> # Vertices still exist
+            >>> graph.num_vertices()
+            2
+
+            >>> # Undirected graph
+            >>> graph = Graph[str](directed=False)
+            >>> graph.add_vertex("X")
+            >>> graph.add_vertex("Y")
+            >>> graph.add_edge("X", "Y", weight=1.0)
+            >>> graph.remove_edge("X", "Y")
+            >>> graph.has_edge("X", "Y")
+            False
+            >>> graph.has_edge("Y", "X")  # Both directions removed
+            False
+        """
+        # Validate both vertices exist
+        self._validate_edge_vertices(source, target, "edge removal")
+
+        # Validate edge exists
+        self._validate_edge_exists(source, target)
+
+        # Remove edge through representation
+        self._repr.remove_edge(source, target)
+
+    def has_edge(self, source: V, target: V) -> bool:
+        """Check if an edge exists between two vertices.
+
+        For directed graphs, checks if edge exists from source to target.
+        For undirected graphs, checks if edge exists in either direction.
+
+        Args:
+            source: The source vertex of the edge
+            target: The target vertex of the edge
+
+        Returns:
+            True if the edge exists, False otherwise
+
+        Examples:
+            >>> # Directed graph
+            >>> graph = Graph[str](directed=True)
+            >>> graph.add_vertex("A")
+            >>> graph.add_vertex("B")
+            >>> graph.has_edge("A", "B")
+            False
+            >>> graph.add_edge("A", "B", weight=1.0)
+            >>> graph.has_edge("A", "B")
+            True
+            >>> graph.has_edge("B", "A")  # Reverse doesn't exist
+            False
+
+            >>> # Undirected graph
+            >>> graph = Graph[str](directed=False)
+            >>> graph.add_vertex("X")
+            >>> graph.add_vertex("Y")
+            >>> graph.add_edge("X", "Y", weight=1.0)
+            >>> graph.has_edge("X", "Y")
+            True
+            >>> graph.has_edge("Y", "X")  # Both directions work
+            True
+        """
+        return self._repr.has_edge(source, target)
+
+    def get_edge(self, source: V, target: V) -> Edge[V]:
+        """Get the edge between two vertices.
+
+        For directed graphs, retrieves the edge from source to target.
+        For undirected graphs, retrieves the edge in either direction (normalized).
+
+        Args:
+            source: The source vertex of the edge
+            target: The target vertex of the edge
+
+        Returns:
+            The Edge object containing source, target, weight, and metadata.
+            For undirected graphs, the edge is normalized to canonical form.
+
+        Raises:
+            EdgeNotFoundError: If the edge doesn't exist in the graph
+
+        Examples:
+            >>> # Directed graph
+            >>> graph = Graph[str](directed=True)
+            >>> graph.add_vertex("A")
+            >>> graph.add_vertex("B")
+            >>> graph.add_edge("A", "B", weight=3.5, metadata={"type": "road"})
+            >>> edge = graph.get_edge("A", "B")
+            >>> edge.weight
+            3.5
+            >>> edge.metadata
+            {'type': 'road'}
+            >>> edge.source
+            'A'
+            >>> edge.target
+            'B'
+
+            >>> # Undirected graph - edges are normalized
+            >>> graph = Graph[str](directed=False)
+            >>> graph.add_vertex("X")
+            >>> graph.add_vertex("Y")
+            >>> graph.add_edge("X", "Y", weight=2.0, metadata={"lanes": 2})
+            >>> edge1 = graph.get_edge("X", "Y")
+            >>> edge2 = graph.get_edge("Y", "X")
+            >>> edge1 == edge2  # Same edge (normalized)
+            True
+            >>> edge1.weight
+            2.0
+        """
+        self._validate_edge_exists(source, target)
+        edge_data = self._repr.get_edge_data(source, target)
+        return edge_data
 
     # Protocol Implementation
 

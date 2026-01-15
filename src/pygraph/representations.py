@@ -37,7 +37,7 @@ class GraphRepresentation[V: Hashable](Protocol):
     def get_vertices(self) -> set[V]:
         """Get all vertices."""
 
-    def get_edges(self) -> list[Edge[V]]:
+    def get_edges(self) -> set[Edge[V]]:
         """Get all edges."""
 
     def get_neighbors(self, vertex: V) -> set[V]:
@@ -103,12 +103,12 @@ class AdjacencyList[V: Hashable]:
         if metadata is None:
             metadata = {}
 
-        edge = Edge(source, target, weight, metadata)
+        edge = Edge(source, target, weight, metadata, directed=self._directed)
         self._adj[source][target] = edge
 
         # For undirected graphs, add the reverse edge
         if not self._directed:
-            reverse_edge = Edge(target, source, weight, metadata)  # pylint: disable=arguments-out-of-order
+            reverse_edge = Edge(target, source, weight, metadata, directed=self._directed)
             self._adj[target][source] = reverse_edge
 
         return True
@@ -138,12 +138,12 @@ class AdjacencyList[V: Hashable]:
         """Get all vertices."""
         return set(self._adj.keys())
 
-    def get_edges(self) -> list[Edge[V]]:
+    def get_edges(self) -> set[Edge[V]]:
         """Get all edges."""
-        edges = []
+        edges = set()
         for neighbors in self._adj.values():
             for edge in neighbors.values():
-                edges.append(edge)
+                edges.add(edge)
         return edges
 
     def get_neighbors(self, vertex: V) -> set[V]:
@@ -241,12 +241,12 @@ class AdjacencyMatrix[V: Hashable]:
         if metadata is None:
             metadata = {}
 
-        edge = Edge(source, target, weight, metadata)
+        edge = Edge(source, target, weight, metadata, directed=self._directed)
         self._matrix[source_idx][target_idx] = edge
 
         # For undirected graphs, add the reverse edge
         if not self._directed:
-            reverse_edge = Edge(target, source, weight, metadata)  # pylint: disable=arguments-out-of-order
+            reverse_edge = Edge(target, source, weight, metadata, directed=self._directed)
             self._matrix[target_idx][source_idx] = reverse_edge
 
         return True
@@ -287,13 +287,13 @@ class AdjacencyMatrix[V: Hashable]:
         """Get all vertices."""
         return set(self._vertex_to_index.keys())
 
-    def get_edges(self) -> list[Edge[V]]:
+    def get_edges(self) -> set[Edge[V]]:
         """Get all edges."""
-        edges = []
+        edges = set()
         for row in self._matrix:
             for edge in row:
                 if edge is not None:
-                    edges.append(edge)
+                    edges.add(edge)
         return edges
 
     def get_neighbors(self, vertex: V) -> set[V]:

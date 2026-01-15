@@ -272,3 +272,352 @@ def test_property_vertex_removal_removes_edges(vertices, vertex_to_remove):
         # Expected: remove_vertex method doesn't exist yet (RED phase)
         # This test should fail until the method is implemented
         pytest.fail("remove_vertex method not implemented yet (expected in RED phase)")
+
+
+@pytest.mark.property
+@settings(max_examples=100)
+@given(
+    vertices=st.lists(st.integers(), min_size=2, max_size=10, unique=True),
+    edge_index=st.integers(min_value=0, max_value=100),
+    weight=st.floats(min_value=0.1, max_value=100.0, allow_nan=False, allow_infinity=False),
+)
+def test_property_edge_addition_increases_count(vertices, edge_index, weight):
+    """Property: Edge addition increases edge count.
+
+    Feature: graph-library, Property 6: For any graph and any new edge (between
+    existing vertices), adding the edge should increase the edge count by exactly one.
+
+    **Validates: Requirements B2.1**
+
+    This test verifies that when a new edge (not already present) is added to
+    a graph between two existing vertices, the edge count increases by exactly one.
+    The test uses random lists of vertices and random edge selections to ensure
+    the property holds across all valid inputs.
+    """
+    # Skip if we don't have at least 2 vertices
+    if len(vertices) < 2:
+        return
+
+    # Create a new graph
+    graph = Graph()
+
+    # Add vertices
+    for vertex in vertices:
+        graph.add_vertex(vertex)
+
+    # Select two different vertices for the edge
+    source_idx = edge_index % len(vertices)
+    target_idx = (edge_index + 1) % len(vertices)
+    source = vertices[source_idx]
+    target = vertices[target_idx]
+
+    # Ensure source and target are different
+    if source == target:
+        if len(vertices) > 1:
+            target = vertices[(target_idx + 1) % len(vertices)]
+        else:
+            return  # Skip if we can't create a valid edge
+
+    # Capture initial state
+    initial_edge_count = graph.num_edges()
+    initial_vertex_count = graph.num_vertices()
+
+    # Property: Adding new edge should increase edge count by exactly 1
+    try:
+        graph.add_edge(source, target, weight=weight)
+
+        final_edge_count = graph.num_edges()
+        final_vertex_count = graph.num_vertices()
+
+        # Verify edge count increased by 1
+        assert final_edge_count == initial_edge_count + 1, (
+            f"Adding new edge should increase count by 1. "
+            f"Initial: {initial_edge_count}, Final: {final_edge_count}, "
+            f"Edge: ({source}, {target}), Weight: {weight}"
+        )
+
+        # Verify vertex count is unchanged
+        assert final_vertex_count == initial_vertex_count, (
+            f"Adding edge should not change vertex count. "
+            f"Initial: {initial_vertex_count}, Final: {final_vertex_count}"
+        )
+
+        # Verify the edge exists in the graph
+        assert graph.has_edge(source, target), f"Edge ({source}, {target}) should exist in graph"
+
+    except AttributeError:
+        # Expected: add_edge method doesn't exist yet (RED phase)
+        # This test should fail until the method is implemented
+        pytest.fail("add_edge method not implemented yet (expected in RED phase)")
+
+
+@pytest.mark.property
+@settings(max_examples=100)
+@given(
+    vertices=st.lists(st.integers(), min_size=2, max_size=10, unique=True),
+    edge_index=st.integers(min_value=0, max_value=100),
+    weight=st.floats(min_value=0.1, max_value=100.0, allow_nan=False, allow_infinity=False),
+    metadata=st.dictionaries(
+        keys=st.text(min_size=1, max_size=5),
+        values=st.one_of(st.text(), st.integers()),
+        max_size=3,
+    ),
+)
+def test_property_duplicate_edge_idempotency(vertices, edge_index, weight, metadata):
+    """Property: Duplicate edge addition is idempotent.
+
+    Feature: graph-library, Property 7: For any graph and any edge already
+    in the graph, adding the edge again should not change the graph state
+    (vertex count, edge count, or structure).
+
+    **Validates: Requirements B2.3**
+
+    This test verifies that adding an edge that already exists in the graph
+    is an idempotent operation - it has no effect on the graph state. The
+    edge count, vertex count, and overall structure should remain unchanged.
+    """
+    # Skip if we don't have at least 2 vertices
+    if len(vertices) < 2:
+        return
+
+    # Create a new graph
+    graph = Graph()
+
+    # Add vertices
+    for vertex in vertices:
+        graph.add_vertex(vertex)
+
+    # Select two different vertices for the edge
+    source_idx = edge_index % len(vertices)
+    target_idx = (edge_index + 1) % len(vertices)
+    source = vertices[source_idx]
+    target = vertices[target_idx]
+
+    # Ensure source and target are different
+    if source == target:
+        if len(vertices) > 1:
+            target = vertices[(target_idx + 1) % len(vertices)]
+        else:
+            return  # Skip if we can't create a valid edge
+
+    # Property: Adding duplicate edge should be idempotent (no change)
+    try:
+        # Add the edge first time
+        graph.add_edge(source, target, weight=weight, metadata=metadata)
+
+        # Capture state after first addition
+        initial_vertex_count = graph.num_vertices()
+        initial_edge_count = graph.num_edges()
+        initial_vertices = graph.vertices().copy()
+        initial_edges = graph.edges().copy()
+
+        # Add the same edge again (duplicate)
+        graph.add_edge(source, target, weight=weight, metadata=metadata)
+
+        # Verify state is unchanged
+        final_vertex_count = graph.num_vertices()
+        final_edge_count = graph.num_edges()
+        final_vertices = graph.vertices()
+        final_edges = graph.edges()
+
+        assert final_vertex_count == initial_vertex_count, (
+            f"Vertex count should not change when adding duplicate edge. "
+            f"Initial: {initial_vertex_count}, Final: {final_vertex_count}, "
+            f"Edge: ({source}, {target})"
+        )
+
+        assert final_edge_count == initial_edge_count, (
+            f"Edge count should not change when adding duplicate edge. "
+            f"Initial: {initial_edge_count}, Final: {final_edge_count}, "
+            f"Edge: ({source}, {target})"
+        )
+
+        assert final_vertices == initial_vertices, (
+            f"Vertex set should not change when adding duplicate edge. "
+            f"Initial: {initial_vertices}, Final: {final_vertices}"
+        )
+
+        assert final_edges == initial_edges, (
+            f"Edge set should not change when adding duplicate edge. " f"Initial: {initial_edges}, Final: {final_edges}"
+        )
+
+    except AttributeError:
+        # Expected: add_edge method doesn't exist yet (RED phase)
+        # This test should fail until the method is implemented
+        pytest.fail("add_edge method not implemented yet (expected in RED phase)")
+
+
+@pytest.mark.property
+@settings(max_examples=100)
+@given(
+    vertices=st.lists(st.integers(), min_size=2, max_size=10, unique=True),
+    edge_index=st.integers(min_value=0, max_value=100),
+    weight=st.floats(min_value=0.1, max_value=100.0, allow_nan=False, allow_infinity=False),
+)
+def test_property_edge_removal_preserves_vertices(vertices, edge_index, weight):
+    """Property: Edge removal preserves vertices.
+
+    Feature: graph-library, Property 8: For any graph and any edge in the graph,
+    removing the edge should decrease the edge count by one but not change the
+    vertex count.
+
+    **Validates: Requirements B2.4**
+
+    This test verifies that when an edge is removed from a graph, the vertices
+    that were connected by that edge remain in the graph. Only the edge itself
+    is removed, not the vertices it connects.
+    """
+    # Skip if we don't have at least 2 vertices
+    if len(vertices) < 2:
+        return
+
+    # Create a new graph
+    graph = Graph()
+
+    # Add vertices
+    for vertex in vertices:
+        graph.add_vertex(vertex)
+
+    # Select two different vertices for the edge
+    source_idx = edge_index % len(vertices)
+    target_idx = (edge_index + 1) % len(vertices)
+    source = vertices[source_idx]
+    target = vertices[target_idx]
+
+    # Ensure source and target are different
+    if source == target:
+        if len(vertices) > 1:
+            target = vertices[(target_idx + 1) % len(vertices)]
+        else:
+            return  # Skip if we can't create a valid edge
+
+    # Property: Removing edge should preserve vertices
+    try:
+        # Add the edge
+        graph.add_edge(source, target, weight=weight)
+
+        # Capture state after adding edge
+        initial_vertex_count = graph.num_vertices()
+        initial_edge_count = graph.num_edges()
+        initial_vertices = graph.vertices().copy()
+
+        # Remove the edge
+        graph.remove_edge(source, target)
+
+        # Verify edge count decreased by 1
+        final_edge_count = graph.num_edges()
+        assert final_edge_count == initial_edge_count - 1, (
+            f"Edge count should decrease by 1 when removing edge. "
+            f"Initial: {initial_edge_count}, Final: {final_edge_count}, "
+            f"Edge: ({source}, {target})"
+        )
+
+        # Verify vertex count is unchanged
+        final_vertex_count = graph.num_vertices()
+        assert final_vertex_count == initial_vertex_count, (
+            f"Vertex count should not change when removing edge. "
+            f"Initial: {initial_vertex_count}, Final: {final_vertex_count}, "
+            f"Edge: ({source}, {target})"
+        )
+
+        # Verify vertices are unchanged
+        final_vertices = graph.vertices()
+        assert final_vertices == initial_vertices, (
+            f"Vertex set should not change when removing edge. " f"Initial: {initial_vertices}, Final: {final_vertices}"
+        )
+
+        # Verify both vertices still exist
+        assert source in graph.vertices(), f"Source vertex {source} should still exist after edge removal"
+        assert target in graph.vertices(), f"Target vertex {target} should still exist after edge removal"
+
+        # Verify the edge no longer exists
+        assert not graph.has_edge(source, target), f"Edge ({source}, {target}) should not exist after removal"
+
+    except AttributeError:
+        # Expected: add_edge or remove_edge method doesn't exist yet (RED phase)
+        # This test should fail until the methods are implemented
+        pytest.fail("add_edge or remove_edge method not implemented yet (expected in RED phase)")
+
+
+@pytest.mark.property
+@settings(max_examples=100)
+@given(
+    vertices=st.lists(st.integers(), min_size=2, max_size=10, unique=True),
+    edge_index=st.integers(min_value=0, max_value=100),
+    weight=st.floats(min_value=0.1, max_value=100.0, allow_nan=False, allow_infinity=False),
+)
+def test_property_directed_edge_distinction(vertices, edge_index, weight):
+    """Property: Directed edges are distinct.
+
+    Feature: graph-library, Property 10: For any directed graph, adding edge (u,v)
+    does not imply that edge (v,u) exists. The two edges are distinct and must be
+    added separately.
+
+    **Validates: Requirements B2.8**
+
+    This test verifies that in a directed graph, edges have direction. Adding an
+    edge from u to v does not automatically create an edge from v to u. The graph
+    must distinguish between (u,v) and (v,u) as separate edges.
+    """
+    # Skip if we don't have at least 2 vertices
+    if len(vertices) < 2:
+        return
+
+    # Create a DIRECTED graph
+    graph = Graph(directed=True)
+
+    # Add vertices
+    for vertex in vertices:
+        graph.add_vertex(vertex)
+
+    # Select two different vertices for the edge
+    source_idx = edge_index % len(vertices)
+    target_idx = (edge_index + 1) % len(vertices)
+    source = vertices[source_idx]
+    target = vertices[target_idx]
+
+    # Ensure source and target are different
+    if source == target:
+        if len(vertices) > 1:
+            target = vertices[(target_idx + 1) % len(vertices)]
+        else:
+            return  # Skip if we can't create a valid edge
+
+    # Property: In directed graph, (u,v) doesn't imply (v,u) exists
+    try:
+        # Add edge from source to target
+        graph.add_edge(source, target, weight=weight)
+
+        # Verify the forward edge exists
+        assert graph.has_edge(source, target), f"Edge ({source}, {target}) should exist"
+
+        # Verify the reverse edge does NOT exist
+        # pylint: disable-next=arguments-out-of-order
+        assert not graph.has_edge(target, source), (
+            f"In directed graph, edge ({source}, {target}) should not imply " f"edge ({target}, {source}) exists"
+        )
+
+        # Verify edge count is 1 (only the forward edge)
+        assert graph.num_edges() == 1, (
+            f"Directed graph should have exactly 1 edge after adding ({source}, {target}), " f"got {graph.num_edges()}"
+        )
+
+        # Now add the reverse edge explicitly
+        graph.add_edge(target, source, weight=weight)  # pylint: disable=arguments-out-of-order
+
+        # Verify both edges now exist
+        assert graph.has_edge(source, target), f"Forward edge ({source}, {target}) should still exist"
+        # pylint: disable-next=arguments-out-of-order
+        assert graph.has_edge(
+            target, source
+        ), f"Reverse edge ({target}, {source}) should now exist"  # pylint: disable=arguments-out-of-order
+
+        # Verify edge count is 2 (both directions)
+        assert graph.num_edges() == 2, (
+            f"Directed graph should have exactly 2 edges after adding both directions, " f"got {graph.num_edges()}"
+        )
+
+    except AttributeError:
+        # Expected: add_edge or has_edge method doesn't exist yet (RED phase)
+        # This test should fail until the methods are implemented
+        pytest.fail("add_edge or has_edge method not implemented yet (expected in RED phase)")

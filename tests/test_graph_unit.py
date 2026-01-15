@@ -12,66 +12,46 @@ These tests follow the TDD methodology:
 
 import pytest
 
-from pygraph.exceptions import VertexNotFoundError
+from pygraph.exceptions import EdgeNotFoundError, VertexNotFoundError
 from pygraph.graph import Graph
 
 
 @pytest.mark.unit
-def test_graph_initialization_directed():
-    """Test that Graph(directed=True) creates directed graph."""
-    graph = Graph(directed=True)
+@pytest.mark.parametrize(
+    "directed,weighted,representation",
+    [
+        (True, True, "adjacency_list"),
+        (False, True, "adjacency_list"),
+        (True, False, "adjacency_list"),
+        (False, False, "adjacency_list"),
+        (True, True, "adjacency_matrix"),
+        (False, True, "adjacency_matrix"),
+        (True, False, "adjacency_matrix"),
+        (False, False, "adjacency_matrix"),
+    ],
+    ids=[
+        "directed_weighted_list",
+        "undirected_weighted_list",
+        "directed_unweighted_list",
+        "undirected_unweighted_list",
+        "directed_weighted_matrix",
+        "undirected_weighted_matrix",
+        "directed_unweighted_matrix",
+        "undirected_unweighted_matrix",
+    ],
+)
+def test_graph_initialization(directed, weighted, representation):
+    """Test Graph initialization with various parameter combinations (consolidated test)."""
+    graph = Graph(directed=directed, weighted=weighted, representation=representation)
 
-    # Verify the graph is configured as directed through public interface
-    assert graph.directed is True, "Graph should be configured as directed"
-
-
-@pytest.mark.unit
-def test_graph_initialization_undirected():
-    """Test that Graph(directed=False) creates undirected graph."""
-    graph = Graph(directed=False)
-
-    # Verify the graph is configured as undirected through public interface
-    assert graph.directed is False, "Graph should be configured as undirected"
-
-
-@pytest.mark.unit
-def test_graph_initialization_weighted():
-    """Test that Graph(weighted=True) creates weighted graph."""
-    graph = Graph(weighted=True)
-
-    # Verify the graph is configured as weighted through public interface
-    assert graph.weighted is True, "Graph should be configured as weighted"
-
-
-@pytest.mark.unit
-def test_graph_initialization_unweighted():
-    """Test that Graph(weighted=False) creates unweighted graph."""
-    graph = Graph(weighted=False)
-
-    # Verify the graph is configured as unweighted through public interface
-    assert graph.weighted is False, "Graph should be configured as unweighted"
+    # Verify all parameters are set correctly through public interface
+    assert graph.directed is directed, f"Graph should be {'directed' if directed else 'undirected'}"
+    assert graph.weighted is weighted, f"Graph should be {'weighted' if weighted else 'unweighted'}"
+    assert graph.representation == representation, f"Graph should use {representation} representation"
 
 
 @pytest.mark.unit
-def test_graph_initialization_adjacency_list():
-    """Test that Graph(representation='adjacency_list') uses adjacency list."""
-    graph = Graph(representation="adjacency_list")
-
-    # Verify the graph uses adjacency list representation through public interface
-    assert graph.representation == "adjacency_list", "Graph should use adjacency list representation"
-
-
-@pytest.mark.unit
-def test_graph_initialization_adjacency_matrix():
-    """Test that Graph(representation='adjacency_matrix') uses adjacency matrix."""
-    graph = Graph(representation="adjacency_matrix")
-
-    # Verify the graph uses adjacency matrix representation through public interface
-    assert graph.representation == "adjacency_matrix", "Graph should use adjacency matrix representation"
-
-
-@pytest.mark.unit
-def test_graph_initialization_default_parameters():
+def test_graph_initialization_defaults():
     """Test that Graph() uses default parameters correctly."""
     graph = Graph()
 
@@ -80,17 +60,6 @@ def test_graph_initialization_default_parameters():
     assert graph.directed is False, "Default graph should be undirected"
     assert graph.weighted is True, "Default graph should be weighted"
     assert graph.representation == "adjacency_list", "Default graph should use adjacency list"
-
-
-@pytest.mark.unit
-def test_graph_initialization_all_parameters():
-    """Test that Graph can be initialized with all parameters specified."""
-    graph = Graph(directed=True, weighted=False, representation="adjacency_matrix")
-
-    # Verify all parameters are set correctly through public interface
-    assert graph.directed is True, "Graph should be directed"
-    assert graph.weighted is False, "Graph should be unweighted"
-    assert graph.representation == "adjacency_matrix", "Graph should use adjacency matrix"
 
 
 @pytest.mark.unit
@@ -189,31 +158,25 @@ def test_graph_to_graph_protocol():
 
 
 @pytest.mark.unit
-def test_graph_with_adjacency_list():
-    """Test Graph functionality with adjacency list representation."""
-    graph = Graph(representation="adjacency_list")
+@pytest.mark.parametrize(
+    "representation,vertices",
+    [
+        ("adjacency_list", ["X", "Y"]),
+        ("adjacency_matrix", ["P", "Q"]),
+    ],
+    ids=["adjacency_list", "adjacency_matrix"],
+)
+def test_graph_with_representation(representation, vertices):
+    """Test Graph functionality with different representations (consolidated test)."""
+    graph = Graph(representation=representation)
 
     # Add vertices and check through public interface
-    graph.add_vertex("X")
-    graph.add_vertex("Y")
+    for vertex in vertices:
+        graph.add_vertex(vertex)
 
-    assert graph.num_vertices() == 2
-    assert "X" in graph.vertices()
-    assert "Y" in graph.vertices()
-
-
-@pytest.mark.unit
-def test_graph_with_adjacency_matrix():
-    """Test Graph functionality with adjacency matrix representation."""
-    graph = Graph(representation="adjacency_matrix")
-
-    # Add vertices and check through public interface
-    graph.add_vertex("P")
-    graph.add_vertex("Q")
-
-    assert graph.num_vertices() == 2
-    assert "P" in graph.vertices()
-    assert "Q" in graph.vertices()
+    assert graph.num_vertices() == len(vertices)
+    for vertex in vertices:
+        assert vertex in graph.vertices()
 
 
 @pytest.mark.unit
@@ -345,3 +308,274 @@ def test_graph_vertex_operations_with_different_types():
 
     assert graph.num_vertices() == 0
     assert graph.vertices() == set()
+
+
+# Edge Operation Tests (RED phase - should fail)
+
+
+@pytest.mark.unit
+def test_graph_add_edge_success():
+    """Test successfully adding edges between existing vertices."""
+    graph = Graph()
+
+    # Add vertices
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex("C")
+
+    # Add edges
+    graph.add_edge("A", "B", weight=1.0)
+    graph.add_edge("B", "C", weight=2.5)
+
+    # Check edges were added
+    assert graph.num_edges() == 2
+    assert graph.has_edge("A", "B")
+    assert graph.has_edge("B", "C")
+
+
+@pytest.mark.unit
+def test_graph_add_edge_with_nonexistent_vertex():
+    """Test that adding edge with non-existent vertex raises VertexNotFoundError."""
+    graph = Graph()
+    graph.add_vertex("A")
+
+    # Try to add edge with non-existent source
+    with pytest.raises(VertexNotFoundError, match="Vertex 'nonexistent' not found"):
+        graph.add_edge("nonexistent", "A", weight=1.0)
+
+    # Try to add edge with non-existent target
+    with pytest.raises(VertexNotFoundError, match="Vertex 'nonexistent' not found"):
+        graph.add_edge("A", "nonexistent", weight=1.0)
+
+    # Verify graph state is unchanged
+    assert graph.num_edges() == 0
+
+
+@pytest.mark.unit
+def test_graph_add_edge_idempotent():
+    """Test that adding the same edge multiple times is idempotent."""
+    graph = Graph()
+
+    # Add vertices
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+
+    # Add same edge multiple times
+    graph.add_edge("A", "B", weight=1.0)
+    graph.add_edge("A", "B", weight=1.0)
+    graph.add_edge("A", "B", weight=1.0)
+
+    # Should only have one edge
+    assert graph.num_edges() == 1
+    assert graph.has_edge("A", "B")
+
+
+@pytest.mark.unit
+def test_graph_add_edge_with_metadata():
+    """Test adding edge with metadata."""
+    graph = Graph()
+
+    # Add vertices
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+
+    # Add edge with metadata
+    metadata = {"type": "highway", "speed_limit": 65}
+    graph.add_edge("A", "B", weight=2.5, metadata=metadata)
+
+    # Check edge exists and has correct metadata
+    assert graph.has_edge("A", "B")
+    edge = graph.get_edge("A", "B")
+    assert edge.weight == 2.5
+    assert edge.metadata == metadata
+
+
+@pytest.mark.unit
+def test_graph_remove_edge_success():
+    """Test successfully removing edges."""
+    graph = Graph()
+
+    # Add vertices and edges
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex("C")
+    graph.add_edge("A", "B", weight=1.0)
+    graph.add_edge("B", "C", weight=2.0)
+
+    # Remove an edge
+    graph.remove_edge("A", "B")
+
+    # Check edge was removed
+    assert graph.num_edges() == 1
+    assert not graph.has_edge("A", "B")
+    assert graph.has_edge("B", "C")
+
+    # Verify vertices still exist
+    assert graph.num_vertices() == 3
+    assert "A" in graph.vertices()
+    assert "B" in graph.vertices()
+
+
+@pytest.mark.unit
+def test_graph_remove_edge_nonexistent():
+    """Test that removing non-existent edge raises EdgeNotFoundError."""
+    graph = Graph()
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+
+    # Try to remove non-existent edge
+    with pytest.raises(EdgeNotFoundError, match="Edge .* not found"):
+        graph.remove_edge("A", "B")
+
+    # Verify graph state is unchanged
+    assert graph.num_edges() == 0
+
+
+@pytest.mark.unit
+def test_graph_has_edge():
+    """Test has_edge method."""
+    graph = Graph()
+
+    # Add vertices
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex("C")
+
+    # Initially no edges
+    assert not graph.has_edge("A", "B")
+    assert not graph.has_edge("B", "C")
+
+    # Add edge
+    graph.add_edge("A", "B", weight=1.0)
+
+    # Check edge exists
+    assert graph.has_edge("A", "B")
+    assert not graph.has_edge("B", "C")
+
+
+@pytest.mark.unit
+def test_graph_get_edge():
+    """Test get_edge returns correct Edge with weight and metadata."""
+    graph = Graph(directed=True)  # Use directed graph to test edge direction
+
+    # Add vertices
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+
+    # Add edge with weight and metadata
+    metadata = {"type": "road", "lanes": 2}
+    graph.add_edge("A", "B", weight=3.5, metadata=metadata)
+
+    # Get edge and verify
+    edge = graph.get_edge("A", "B")
+    assert edge.source == "A"
+    assert edge.target == "B"
+    assert edge.weight == 3.5
+    assert edge.metadata == metadata
+
+    # Try to get non-existent edge (reverse direction in directed graph)
+    with pytest.raises(EdgeNotFoundError, match="Edge .* not found"):
+        graph.get_edge("B", "A")
+
+
+@pytest.mark.unit
+def test_graph_get_edge_undirected():
+    """Test get_edge works in both directions for undirected graphs."""
+    graph = Graph(directed=False)  # Undirected graph
+
+    # Add vertices
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+
+    # Add edge with weight and metadata
+    metadata = {"type": "road", "lanes": 2}
+    graph.add_edge("A", "B", weight=3.5, metadata=metadata)
+
+    # Get edge in forward direction
+    edge_forward = graph.get_edge("A", "B")
+    assert edge_forward.weight == 3.5
+    assert edge_forward.metadata == metadata
+
+    # Get edge in reverse direction (should work for undirected graph)
+    edge_reverse = graph.get_edge("B", "A")
+    assert edge_reverse.weight == 3.5
+    assert edge_reverse.metadata == metadata
+
+    # Both directions should return edges that are equal (normalized to same form)
+    assert edge_forward == edge_reverse
+    assert hash(edge_forward) == hash(edge_reverse)
+
+    # Both edges are normalized to canonical form (A < B, so source='A', target='B')
+    assert edge_forward.source == "A"
+    assert edge_forward.target == "B"
+    assert edge_reverse.source == "A"  # Also normalized
+    assert edge_reverse.target == "B"  # Also normalized
+
+
+@pytest.mark.unit
+def test_graph_directed_edges():
+    """Test that directed graphs distinguish between (u,v) and (v,u)."""
+    graph = Graph(directed=True)
+
+    # Add vertices
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+
+    # Add edge A -> B
+    graph.add_edge("A", "B", weight=1.0)
+
+    # Check only forward edge exists
+    assert graph.has_edge("A", "B")
+    assert not graph.has_edge("B", "A")
+    assert graph.num_edges() == 1
+
+    # Add reverse edge B -> A
+    graph.add_edge("B", "A", weight=2.0)
+
+    # Check both edges exist
+    assert graph.has_edge("A", "B")
+    assert graph.has_edge("B", "A")
+    assert graph.num_edges() == 2
+
+
+@pytest.mark.unit
+def test_graph_undirected_edges():
+    """Test that undirected graphs treat (u,v) and (v,u) as the same edge."""
+    graph = Graph(directed=False)
+
+    # Add vertices
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+
+    # Add edge A - B
+    graph.add_edge("A", "B", weight=1.0)
+
+    # Check both directions exist (same edge)
+    assert graph.has_edge("A", "B")
+    assert graph.has_edge("B", "A")
+    assert graph.num_edges() == 1
+
+
+@pytest.mark.unit
+def test_graph_edge_operations_atomic():
+    """Test that edge operations are atomic (rollback on failure)."""
+    graph = Graph()
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+
+    # Try to remove non-existent edge - should not change graph state
+    with pytest.raises(EdgeNotFoundError):
+        graph.remove_edge("A", "B")
+
+    graph.add_edge("A", "B", weight=1.0)
+
+    initial_edges = graph.edges().copy()
+    initial_count = graph.num_edges()
+
+    # Try to remove non-existent edge - should not change graph state
+    with pytest.raises(VertexNotFoundError):
+        graph.remove_edge("B", "C")
+
+    # Verify graph state is unchanged (atomic operation)
+    assert graph.edges() == initial_edges
+    assert graph.num_edges() == initial_count

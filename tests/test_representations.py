@@ -114,9 +114,14 @@ class TestAdjacencyList:
         reverse_edge = adj_list.get_edge_data("B", "A")
         assert forward_edge is not None
         assert reverse_edge is not None
+
+        # Both edges are normalized to canonical form (A < B)
         assert forward_edge.source == "A" and forward_edge.target == "B"
-        assert reverse_edge.source == "B" and reverse_edge.target == "A"
+        assert reverse_edge.source == "A" and reverse_edge.target == "B"
         assert forward_edge.weight == reverse_edge.weight == 3.0
+
+        # The edges are equal due to normalization
+        assert forward_edge == reverse_edge
 
     @pytest.mark.unit
     def test_add_edge_nonexistent_vertices(self):
@@ -236,9 +241,10 @@ class TestAdjacencyList:
         adj_list.add_edge("A", "B", weight=2.0)
         edges = adj_list.get_edges()
         assert len(edges) == 1
-        assert edges[0].source == "A"
-        assert edges[0].target == "B"
-        assert edges[0].weight == 2.0
+        edge = next(iter(edges))  # Get the single edge from the set
+        assert edge.source == "A"
+        assert edge.target == "B"
+        assert edge.weight == 2.0
 
     @pytest.mark.unit
     def test_get_neighbors(self):
@@ -399,8 +405,13 @@ class TestAdjacencyMatrix:
         reverse_edge = adj_matrix.get_edge_data("B", "A")
         assert forward_edge is not None
         assert reverse_edge is not None
+
+        # Both edges are normalized to canonical form (A < B)
         assert forward_edge.source == "A" and forward_edge.target == "B"
-        assert reverse_edge.source == "B" and reverse_edge.target == "A"
+        assert reverse_edge.source == "A" and reverse_edge.target == "B"
+
+        # The edges are equal due to normalization
+        assert forward_edge == reverse_edge
 
     @pytest.mark.unit
     def test_add_edge_nonexistent_vertices(self):
@@ -554,9 +565,10 @@ class TestAdjacencyMatrix:
         adj_matrix.add_edge("A", "B", weight=2.0)
         edges = adj_matrix.get_edges()
         assert len(edges) == 1
-        assert edges[0].source == "A"
-        assert edges[0].target == "B"
-        assert edges[0].weight == 2.0
+        edge = next(iter(edges))  # Get the single edge from the set
+        assert edge.source == "A"
+        assert edge.target == "B"
+        assert edge.weight == 2.0
 
     @pytest.mark.unit
     def test_get_neighbors(self):
