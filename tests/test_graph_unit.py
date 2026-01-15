@@ -12,6 +12,7 @@ These tests follow the TDD methodology:
 
 import pytest
 
+from pygraph.exceptions import VertexNotFoundError
 from pygraph.graph import Graph
 
 
@@ -149,15 +150,20 @@ def test_graph_add_vertex_non_hashable():
     """Test that adding non-hashable vertex raises TypeError."""
     graph = Graph()
 
-    # Try to add non-hashable vertices
-    with pytest.raises(TypeError, match="Vertex must be hashable"):
-        graph.add_vertex([1, 2, 3])
+    # Test various non-hashable types with detailed error checking
+    non_hashable_values = [
+        [1, 2, 3],  # list
+        {"key": "value"},  # dict
+        {1, 2, 3},  # set
+    ]
 
-    with pytest.raises(TypeError, match="Vertex must be hashable"):
-        graph.add_vertex({"key": "value"})
+    for non_hashable_value in non_hashable_values:
+        with pytest.raises(TypeError, match="Vertex must be hashable"):
+            graph.add_vertex(non_hashable_value)
 
-    with pytest.raises(TypeError, match="Vertex must be hashable"):
-        graph.add_vertex({1, 2, 3})
+        # Verify graph state is unchanged after each failed attempt
+        assert graph.vertices() == set()
+        assert graph.num_vertices() == 0
 
 
 @pytest.mark.unit
@@ -222,3 +228,120 @@ def test_graph_create_representation_method():
     graph2 = Graph(representation="adjacency_matrix", directed=False)
     assert graph2.representation == "adjacency_matrix"
     assert graph2.directed is False
+
+
+@pytest.mark.unit
+def test_graph_remove_vertex_success():
+    """Test successfully removing vertices."""
+    graph = Graph()
+
+    # Add vertices
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex("C")
+
+    # Remove a vertex
+    graph.remove_vertex("B")
+
+    # Check vertex was removed
+    vertices = graph.vertices()
+    assert "A" in vertices
+    assert "B" not in vertices
+    assert "C" in vertices
+    assert len(vertices) == 2
+
+
+@pytest.mark.unit
+def test_graph_remove_vertex_nonexistent():
+    """Test that removing non-existent vertex raises VertexNotFoundError."""
+    graph = Graph()
+    graph.add_vertex("A")
+
+    # Try to remove non-existent vertex
+    with pytest.raises(VertexNotFoundError, match="Vertex 'nonexistent' not found in graph"):
+        graph.remove_vertex("nonexistent")
+
+    # Verify graph state is unchanged
+    assert graph.vertices() == {"A"}
+    assert graph.num_vertices() == 1
+
+
+@pytest.mark.unit
+def test_graph_remove_vertex_from_empty_graph():
+    """Test that removing vertex from empty graph raises VertexNotFoundError."""
+    graph = Graph()
+
+    # Try to remove vertex from empty graph
+    with pytest.raises(VertexNotFoundError, match="Vertex 'X' not found in graph"):
+        graph.remove_vertex("X")
+
+    # Verify graph remains empty
+    assert graph.vertices() == set()
+    assert graph.num_vertices() == 0
+
+
+@pytest.mark.unit
+def test_graph_vertex_operations_atomic():
+    """Test that vertex operations are atomic (rollback on failure)."""
+    graph = Graph()
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+
+    initial_vertices = graph.vertices().copy()
+    initial_count = graph.num_vertices()
+
+    # Try to remove non-existent vertex - should not change graph state
+    with pytest.raises(VertexNotFoundError):
+        graph.remove_vertex("nonexistent")
+
+    # Verify graph state is unchanged (atomic operation)
+    assert graph.vertices() == initial_vertices
+    assert graph.num_vertices() == initial_count
+
+
+@pytest.mark.unit
+def test_graph_vertex_operations_edge_cases():
+    """Test edge cases for vertex operations."""
+    graph = Graph()
+
+    # Test adding and removing the same vertex multiple times
+    graph.add_vertex("X")
+    assert graph.num_vertices() == 1
+
+    # Remove it
+    graph.remove_vertex("X")
+    assert graph.num_vertices() == 0
+
+    # Add it again
+    graph.add_vertex("X")
+    assert graph.num_vertices() == 1
+    assert "X" in graph.vertices()
+
+    # Remove it again
+    graph.remove_vertex("X")
+    assert graph.num_vertices() == 0
+    assert graph.vertices() == set()
+
+
+@pytest.mark.unit
+def test_graph_vertex_operations_with_different_types():
+    """Test vertex operations with different hashable types."""
+    graph = Graph()
+
+    # Test with different hashable types
+    vertices = ["string", 42, (1, 2), frozenset([1, 2, 3])]
+
+    # Add all vertices
+    for vertex in vertices:
+        graph.add_vertex(vertex)
+
+    assert graph.num_vertices() == len(vertices)
+    for vertex in vertices:
+        assert vertex in graph.vertices()
+
+    # Remove all vertices
+    for vertex in vertices:
+        graph.remove_vertex(vertex)
+
+    assert graph.num_vertices() == 0
+    assert graph.vertices() == set()

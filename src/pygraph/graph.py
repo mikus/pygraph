@@ -18,6 +18,7 @@ from collections.abc import Hashable
 from typing import Literal
 
 from pygraph.edge import Edge
+from pygraph.exceptions import VertexNotFoundError
 from pygraph.representations import AdjacencyList, AdjacencyMatrix, GraphRepresentation
 
 
@@ -123,9 +124,55 @@ class Graph[V: Hashable]:
 
         Raises:
             TypeError: If vertex is not hashable
+
+        Examples:
+            >>> graph = Graph[str]()
+            >>> graph.add_vertex("A")
+            >>> graph.add_vertex("B")
+            >>> len(graph.vertices())
+            2
+            >>> graph.add_vertex("A")  # Idempotent - no effect
+            >>> len(graph.vertices())
+            2
+            >>> graph.add_vertex([1, 2])  # doctest: +IGNORE_EXCEPTION_DETAIL
+            Traceback (most recent call last):
+            TypeError: Vertex must be hashable, got list: [1, 2]
         """
         self._validate_vertex_hashable(vertex)
         self._repr.add_vertex(vertex)
+
+    def remove_vertex(self, vertex: V) -> None:
+        """Remove a vertex from the graph.
+
+        This operation removes the vertex and all edges incident to it.
+        If the vertex doesn't exist, raises VertexNotFoundError.
+
+        Args:
+            vertex: The vertex to remove
+
+        Raises:
+            VertexNotFoundError: If vertex is not in the graph
+
+        Examples:
+            >>> graph = Graph[str]()
+            >>> graph.add_vertex("A")
+            >>> graph.add_vertex("B")
+            >>> len(graph.vertices())
+            2
+            >>> graph.remove_vertex("A")
+            >>> len(graph.vertices())
+            1
+            >>> "A" in graph.vertices()
+            False
+            >>> graph.remove_vertex("nonexistent")  # doctest: +IGNORE_EXCEPTION_DETAIL
+            Traceback (most recent call last):
+            VertexNotFoundError: Vertex nonexistent not found in graph
+        """
+        if not self._repr.has_vertex(vertex):
+            available = sorted(self._repr.get_vertices()) if self._repr.get_vertices() else "none"
+            raise VertexNotFoundError(f"Vertex '{vertex}' not found in graph. Available vertices: {available}")
+
+        self._repr.remove_vertex(vertex)
 
     def _validate_vertex_hashable(self, vertex: V) -> None:
         """Validate that a vertex is hashable.
@@ -148,6 +195,15 @@ class Graph[V: Hashable]:
 
         Returns:
             Set of all vertices in the graph
+
+        Examples:
+            >>> graph = Graph[str]()
+            >>> graph.vertices()
+            set()
+            >>> graph.add_vertex("A")
+            >>> graph.add_vertex("B")
+            >>> sorted(graph.vertices())
+            ['A', 'B']
         """
         return self._repr.get_vertices()
 
@@ -164,6 +220,18 @@ class Graph[V: Hashable]:
 
         Returns:
             Number of vertices in the graph
+
+        Examples:
+            >>> graph = Graph[str]()
+            >>> graph.num_vertices()
+            0
+            >>> graph.add_vertex("A")
+            >>> graph.add_vertex("B")
+            >>> graph.num_vertices()
+            2
+            >>> graph.remove_vertex("A")
+            >>> graph.num_vertices()
+            1
         """
         return len(self.vertices())
 
