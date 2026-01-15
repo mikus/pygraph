@@ -10,7 +10,8 @@ from hypothesis import strategies as st
 def test_hypothesis_basic(x):
     """Verify Hypothesis is properly configured and runs tests."""
     # Simple property: any integer is equal to itself
-    assert x == x
+    # This is a tautology used to verify Hypothesis is working
+    assert x == x  # pylint: disable=comparison-with-itself
 
 
 @pytest.mark.property
@@ -42,6 +43,7 @@ def test_hypothesis_custom_iterations(x):
 @pytest.mark.unit
 def test_hypothesis_settings_applied():
     """Verify that Hypothesis settings from pyproject.toml are applied."""
+    # pylint: disable=import-outside-toplevel,reimported
     from hypothesis import settings as hypothesis_settings
 
     # Get the default profile settings

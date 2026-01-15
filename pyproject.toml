@@ -39,7 +39,7 @@ check = "scripts.check:main"
 
 [tool.setuptools.packages.find]
 where = ["src", "."]
-include = ["scripts*"]
+include = ["pygraph*", "scripts*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
