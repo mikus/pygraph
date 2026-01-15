@@ -21,27 +21,34 @@ __version__ = "0.1.0"
 __author__ = "Graph Library Contributors"
 __license__ = "Apache-2.0"
 
-# Import main classes for convenient access
-# Note: These imports will be added as we implement the classes
-# from .graph import Graph
 # from .tree import Tree
 # from .algorithms import bfs, dfs, dijkstra, topological_sort
-# from .exceptions import GraphError, VertexNotFoundError, EdgeNotFoundError
+from .exceptions import (
+    CycleError,
+    DisconnectedGraphError,
+    EdgeNotFoundError,
+    GraphError,
+    InvalidGraphError,
+    VertexNotFoundError,
+)
+
+# Import main classes for convenient access
+# Note: These imports will be added as we implement the classes
+from .graph import Graph
 
 __all__ = [
     # Core data structures (to be uncommented as implemented)
-    # "Graph",
+    "Graph",
     # "Tree",
     # Algorithms (to be uncommented as implemented)
     # "bfs",
     # "dfs",
     # "dijkstra",
     # "topological_sort",
-    # Exceptions (to be uncommented as implemented)
-    # "GraphError",
-    # "VertexNotFoundError",
-    # "EdgeNotFoundError",
-    # "CycleError",
-    # "DisconnectedGraphError",
-    # "InvalidGraphError",
+    "GraphError",
+    "VertexNotFoundError",
+    "EdgeNotFoundError",
+    "CycleError",
+    "DisconnectedGraphError",
+    "InvalidGraphError",
 ]
