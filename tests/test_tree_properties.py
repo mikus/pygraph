@@ -16,6 +16,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from pygraph.exceptions import CycleError
+from pygraph.tree import Tree
 
 
 @pytest.mark.property
@@ -49,12 +50,6 @@ def test_property_trees_remain_acyclic(vertices, edge_pairs):
     # Skip if we don't have enough vertices to create a meaningful tree
     if len(vertices) < 3:
         return
-
-    # Import Tree class (will fail in RED phase)
-    try:
-        from pygraph.tree import Tree
-    except ImportError:
-        pytest.fail("Tree class not implemented yet (expected in RED phase)")
 
     # Create a tree with the first vertex as root
     root = vertices[0]

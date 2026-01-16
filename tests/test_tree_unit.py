@@ -12,6 +12,11 @@ These tests follow the TDD methodology:
 
 import pytest
 
+from pygraph.exceptions import CycleError, VertexNotFoundError
+from pygraph.graph import Graph
+from pygraph.protocols import GraphLike
+from pygraph.tree import Tree
+
 
 @pytest.mark.unit
 def test_tree_initialization_with_root():
@@ -22,12 +27,6 @@ def test_tree_initialization_with_root():
 
     Expected in RED phase: Test FAILS (Tree class doesn't exist yet)
     """
-    # Import Tree class (will fail in RED phase)
-    try:
-        from pygraph.tree import Tree
-    except ImportError:
-        pytest.fail("Tree class not implemented yet (expected in RED phase)")
-
     # Create a tree with a root vertex
     root = "A"
     tree = Tree(root)
@@ -55,12 +54,6 @@ def test_tree_initialization_with_different_types():
 
     Expected in RED phase: Test FAILS (Tree class doesn't exist yet)
     """
-    # Import Tree class (will fail in RED phase)
-    try:
-        from pygraph.tree import Tree
-    except ImportError:
-        pytest.fail("Tree class not implemented yet (expected in RED phase)")
-
     # Test with string root
     tree_str = Tree("root")
     assert tree_str.root == "root"
@@ -86,13 +79,6 @@ def test_tree_implements_graphlike_protocol():
 
     Expected in RED phase: Test FAILS (Tree class doesn't exist yet)
     """
-    # Import Tree class and GraphLike protocol (will fail in RED phase)
-    try:
-        from pygraph.protocols import GraphLike
-        from pygraph.tree import Tree
-    except ImportError:
-        pytest.fail("Tree class or GraphLike protocol not implemented yet (expected in RED phase)")
-
     # Create a tree
     tree = Tree("root")
 
@@ -123,13 +109,6 @@ def test_tree_to_graph_returns_valid_graph():
 
     Expected in RED phase: Test FAILS (Tree class doesn't exist yet)
     """
-    # Import Tree and Graph classes (will fail in RED phase)
-    try:
-        from pygraph.graph import Graph
-        from pygraph.tree import Tree
-    except ImportError:
-        pytest.fail("Tree class not implemented yet (expected in RED phase)")
-
     # Create a tree with a root
     root = "A"
     tree = Tree(root)
@@ -162,12 +141,6 @@ def test_tree_to_graph_preserves_structure():
     Note: This test will be more meaningful after add_child is implemented,
     but we include it now to verify the basic structure.
     """
-    # Import Tree class (will fail in RED phase)
-    try:
-        from pygraph.tree import Tree
-    except ImportError:
-        pytest.fail("Tree class not implemented yet (expected in RED phase)")
-
     # Create a tree with a root
     root = "A"
     tree = Tree(root)
@@ -193,12 +166,6 @@ def test_tree_graphlike_methods_work():
 
     Expected in RED phase: Test FAILS (Tree class doesn't exist yet)
     """
-    # Import Tree class (will fail in RED phase)
-    try:
-        from pygraph.tree import Tree
-    except ImportError:
-        pytest.fail("Tree class not implemented yet (expected in RED phase)")
-
     # Create a tree with a root
     root = "A"
     tree = Tree(root)
@@ -234,12 +201,6 @@ def test_tree_num_vertices_and_num_edges():
 
     Expected in RED phase: Test FAILS (Tree class doesn't exist yet)
     """
-    # Import Tree class (will fail in RED phase)
-    try:
-        from pygraph.tree import Tree
-    except ImportError:
-        pytest.fail("Tree class not implemented yet (expected in RED phase)")
-
     # Create a tree with a root
     root = "A"
     tree = Tree(root)
@@ -264,12 +225,6 @@ def test_tree_root_property():
 
     Expected in RED phase: Test FAILS (Tree class doesn't exist yet)
     """
-    # Import Tree class (will fail in RED phase)
-    try:
-        from pygraph.tree import Tree
-    except ImportError:
-        pytest.fail("Tree class not implemented yet (expected in RED phase)")
-
     # Create trees with different root types
     tree_str = Tree("root")
     tree_int = Tree(42)
@@ -282,3 +237,811 @@ def test_tree_root_property():
 
     # Verify root is read-only (if implemented as property)
     assert hasattr(tree_str, "root"), "Tree should have root attribute/property"
+
+
+# ============================================================================
+# Task 3.2: Node Operations Tests (RED Phase)
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_add_child_adds_child_to_parent_correctly():
+    """Test add_child adds child to parent correctly.
+
+    This test verifies that when add_child is called with a valid parent
+    and a new child vertex, the child is added to the tree and connected
+    to the parent.
+
+    Expected in RED phase: Test FAILS (add_child doesn't exist yet or is incomplete)
+    """
+    # Create a tree with a root
+    tree = Tree("A")
+
+    # Add a child to the root
+    tree.add_child("A", "B")
+
+    # Verify the tree now has 2 vertices
+    assert tree.num_vertices() == 2, f"Tree should have 2 vertices, got {tree.num_vertices()}"
+
+    # Verify the tree has 1 edge
+    assert tree.num_edges() == 1, f"Tree should have 1 edge, got {tree.num_edges()}"
+
+    # Verify B is in the tree's vertices
+    assert "B" in tree.vertices(), "Child B should be in tree vertices"
+
+    # Verify the edge exists from A to B
+    assert tree.has_edge("A", "B"), "Edge from A to B should exist"
+
+    # Verify B is a child of A
+    children = tree.children("A")
+    assert "B" in children, f"B should be a child of A, got children: {children}"
+
+    # Verify A is the parent of B
+    parent = tree.parent("B")
+    assert parent == "A", f"Parent of B should be A, got {parent}"
+
+
+@pytest.mark.unit
+def test_add_child_with_multiple_children():
+    """Test add_child can add multiple children to the same parent.
+
+    This test verifies that a parent can have multiple children.
+
+    Expected in RED phase: Test FAILS (add_child doesn't exist yet or is incomplete)
+    """
+    # Create a tree with a root
+    tree = Tree("root")
+
+    # Add multiple children to the root
+    tree.add_child("root", "child1")
+    tree.add_child("root", "child2")
+    tree.add_child("root", "child3")
+
+    # Verify the tree has 4 vertices (root + 3 children)
+    assert tree.num_vertices() == 4, f"Tree should have 4 vertices, got {tree.num_vertices()}"
+
+    # Verify the tree has 3 edges
+    assert tree.num_edges() == 3, f"Tree should have 3 edges, got {tree.num_edges()}"
+
+    # Verify all children are in the tree
+    children = tree.children("root")
+    assert "child1" in children, "child1 should be a child of root"
+    assert "child2" in children, "child2 should be a child of root"
+    assert "child3" in children, "child3 should be a child of root"
+    assert len(children) == 3, f"Root should have 3 children, got {len(children)}"
+
+
+@pytest.mark.unit
+def test_add_child_creates_nested_structure():
+    """Test add_child can create nested tree structures.
+
+    This test verifies that children can have their own children,
+    creating a multi-level tree structure.
+
+    Expected in RED phase: Test FAILS (add_child doesn't exist yet or is incomplete)
+    """
+    # Create a tree with a root
+    tree = Tree("A")
+
+    # Create a nested structure: A -> B -> C
+    tree.add_child("A", "B")
+    tree.add_child("B", "C")
+
+    # Verify the tree has 3 vertices
+    assert tree.num_vertices() == 3, f"Tree should have 3 vertices, got {tree.num_vertices()}"
+
+    # Verify the tree has 2 edges
+    assert tree.num_edges() == 2, f"Tree should have 2 edges, got {tree.num_edges()}"
+
+    # Verify parent-child relationships
+    assert tree.parent("B") == "A", "Parent of B should be A"
+    assert tree.parent("C") == "B", "Parent of C should be B"
+    assert tree.parent("A") is None, "Root A should have no parent"
+
+    # Verify children relationships
+    assert "B" in tree.children("A"), "B should be a child of A"
+    assert "C" in tree.children("B"), "C should be a child of B"
+    assert len(tree.children("C")) == 0, "C should have no children"
+
+
+@pytest.mark.unit
+def test_add_child_raises_error_if_parent_does_not_exist():
+    """Test add_child raises error if parent doesn't exist.
+
+    This test verifies that attempting to add a child to a non-existent
+    parent vertex raises a VertexNotFoundError.
+
+    Expected in RED phase: Test FAILS (add_child doesn't exist yet or is incomplete)
+    """
+    # Create a tree with a root
+    tree = Tree("A")
+
+    # Attempt to add a child to a non-existent parent
+    with pytest.raises(VertexNotFoundError) as exc_info:
+        tree.add_child("NonExistent", "B")
+
+    # Verify the error message mentions the parent
+    assert "NonExistent" in str(exc_info.value), "Error message should mention the non-existent parent"
+
+    # Verify the tree is unchanged (still only has root)
+    assert tree.num_vertices() == 1, "Tree should still have only 1 vertex after failed add_child"
+    assert tree.num_edges() == 0, "Tree should still have 0 edges after failed add_child"
+
+
+@pytest.mark.unit
+def test_add_child_raises_error_if_child_already_exists():
+    """Test add_child raises error if child already exists in tree.
+
+    This test verifies that attempting to add a child that already exists
+    in the tree raises a ValueError.
+
+    Expected in RED phase: Test FAILS (add_child doesn't exist yet or is incomplete)
+    """
+    # Create a tree with a root and a child
+    tree = Tree("A")
+    tree.add_child("A", "B")
+
+    # Attempt to add B again as a child of A
+    with pytest.raises(ValueError) as exc_info:
+        tree.add_child("A", "B")
+
+    # Verify the error message mentions the child
+    assert "B" in str(exc_info.value), "Error message should mention the duplicate child"
+    assert "already exists" in str(exc_info.value).lower(), "Error message should mention 'already exists'"
+
+    # Verify the tree is unchanged
+    assert tree.num_vertices() == 2, "Tree should still have 2 vertices after failed add_child"
+    assert tree.num_edges() == 1, "Tree should still have 1 edge after failed add_child"
+
+
+@pytest.mark.unit
+def test_add_child_raises_cycle_error_if_cycle_would_be_created():
+    """Test add_child raises CycleError if cycle would be created.
+
+    This test verifies that attempting to add an edge that would create
+    a cycle in the tree raises a CycleError and leaves the tree unchanged.
+
+    Expected in RED phase: Test FAILS (add_child doesn't exist yet or is incomplete)
+    """
+    # Create a tree with a chain: A -> B -> C
+    tree = Tree("A")
+    tree.add_child("A", "B")
+    tree.add_child("B", "C")
+
+    # Attempt to create a cycle by making A a child of C
+    # This would create: A -> B -> C -> A (cycle)
+    with pytest.raises(CycleError) as exc_info:
+        tree.add_child("C", "A")
+
+    # Verify the error message mentions cycle
+    assert "cycle" in str(exc_info.value).lower(), "Error message should mention 'cycle'"
+
+    # Verify the tree is unchanged (atomic operation)
+    assert tree.num_vertices() == 3, "Tree should still have 3 vertices after failed add_child"
+    assert tree.num_edges() == 2, "Tree should still have 2 edges after failed add_child"
+    assert not tree.has_edge("C", "A"), "Cycle edge should not have been added"
+
+    # Verify parent-child relationships are unchanged
+    assert tree.parent("B") == "A", "Parent of B should still be A"
+    assert tree.parent("C") == "B", "Parent of C should still be B"
+    assert tree.parent("A") is None, "A should still be the root with no parent"
+
+
+@pytest.mark.unit
+def test_add_child_cycle_detection_complex():
+    """Test add_child detects cycles in more complex scenarios.
+
+    This test verifies cycle detection works in trees with multiple branches.
+
+    Expected in RED phase: Test FAILS (add_child doesn't exist yet or is incomplete)
+    """
+    # Create a tree with multiple branches:
+    #       A
+    #      / \
+    #     B   C
+    #    /
+    #   D
+    tree = Tree("A")
+    tree.add_child("A", "B")
+    tree.add_child("A", "C")
+    tree.add_child("B", "D")
+
+    # Attempt to create a cycle: D -> B (would create cycle B -> D -> B)
+    with pytest.raises(CycleError):
+        tree.add_child("D", "B")
+
+    # Attempt to create a cycle: D -> A (would create cycle A -> B -> D -> A)
+    with pytest.raises(CycleError):
+        tree.add_child("D", "A")
+
+    # Verify the tree is unchanged
+    assert tree.num_vertices() == 4, "Tree should still have 4 vertices"
+    assert tree.num_edges() == 3, "Tree should still have 3 edges"
+
+
+@pytest.mark.unit
+def test_remove_subtree_removes_node_and_descendants():
+    """Test remove_subtree removes node and all descendants.
+
+    This test verifies that remove_subtree removes the specified node
+    and all of its descendants from the tree.
+
+    Expected in RED phase: Test FAILS (remove_subtree doesn't exist yet)
+    """
+    # Create a tree with multiple levels:
+    #       A
+    #      / \
+    #     B   C
+    #    / \
+    #   D   E
+    tree = Tree("A")
+    tree.add_child("A", "B")
+    tree.add_child("A", "C")
+    tree.add_child("B", "D")
+    tree.add_child("B", "E")
+
+    # Remove subtree rooted at B (should remove B, D, and E)
+    tree.remove_subtree("B")
+
+    # Verify the tree now has 2 vertices (A and C)
+    assert tree.num_vertices() == 2, f"Tree should have 2 vertices after removing subtree, got {tree.num_vertices()}"
+
+    # Verify the tree has 1 edge (A -> C)
+    assert tree.num_edges() == 1, f"Tree should have 1 edge after removing subtree, got {tree.num_edges()}"
+
+    # Verify B, D, and E are no longer in the tree
+    vertices = tree.vertices()
+    assert "B" not in vertices, "B should be removed from tree"
+    assert "D" not in vertices, "D should be removed from tree"
+    assert "E" not in vertices, "E should be removed from tree"
+
+    # Verify A and C are still in the tree
+    assert "A" in vertices, "A should still be in tree"
+    assert "C" in vertices, "C should still be in tree"
+
+    # Verify C is still a child of A
+    assert "C" in tree.children("A"), "C should still be a child of A"
+
+
+@pytest.mark.unit
+def test_remove_subtree_removes_single_leaf():
+    """Test remove_subtree can remove a single leaf node.
+
+    This test verifies that remove_subtree works correctly when removing
+    a leaf node (node with no children).
+
+    Expected in RED phase: Test FAILS (remove_subtree doesn't exist yet)
+    """
+    # Create a simple tree: A -> B -> C
+    tree = Tree("A")
+    tree.add_child("A", "B")
+    tree.add_child("B", "C")
+
+    # Remove leaf node C
+    tree.remove_subtree("C")
+
+    # Verify the tree now has 2 vertices (A and B)
+    assert tree.num_vertices() == 2, f"Tree should have 2 vertices, got {tree.num_vertices()}"
+
+    # Verify the tree has 1 edge (A -> B)
+    assert tree.num_edges() == 1, f"Tree should have 1 edge, got {tree.num_edges()}"
+
+    # Verify C is no longer in the tree
+    assert "C" not in tree.vertices(), "C should be removed from tree"
+
+    # Verify B has no children
+    assert len(tree.children("B")) == 0, "B should have no children after removing C"
+
+
+@pytest.mark.unit
+def test_remove_subtree_updates_parent_map():
+    """Test remove_subtree updates the internal parent map correctly.
+
+    This test verifies that when a subtree is removed, the internal
+    parent map is updated to remove entries for all removed nodes.
+
+    Expected in RED phase: Test FAILS (remove_subtree doesn't exist yet)
+    """
+    # Create a tree: A -> B -> C
+    tree = Tree("A")
+    tree.add_child("A", "B")
+    tree.add_child("B", "C")
+
+    # Verify parent relationships before removal
+    assert tree.parent("B") == "A", "Parent of B should be A"
+    assert tree.parent("C") == "B", "Parent of C should be B"
+
+    # Remove subtree rooted at B
+    tree.remove_subtree("B")
+
+    # Verify B and C are no longer in the tree
+    assert "B" not in tree.vertices(), "B should be removed"
+    assert "C" not in tree.vertices(), "C should be removed"
+
+    # Attempting to get parent of removed nodes should raise error
+    from pygraph.exceptions import VertexNotFoundError
+
+    with pytest.raises(VertexNotFoundError):
+        tree.parent("B")
+
+    with pytest.raises(VertexNotFoundError):
+        tree.parent("C")
+
+
+@pytest.mark.unit
+def test_remove_subtree_raises_error_if_node_does_not_exist():
+    """Test remove_subtree raises error if node doesn't exist.
+
+    This test verifies that attempting to remove a non-existent node
+    raises a VertexNotFoundError.
+
+    Expected in RED phase: Test FAILS (remove_subtree doesn't exist yet)
+    """
+    # Create a simple tree
+    tree = Tree("A")
+    tree.add_child("A", "B")
+
+    # Attempt to remove a non-existent node
+    with pytest.raises(VertexNotFoundError) as exc_info:
+        tree.remove_subtree("NonExistent")
+
+    # Verify the error message mentions the node
+    assert "NonExistent" in str(exc_info.value), "Error message should mention the non-existent node"
+
+    # Verify the tree is unchanged
+    assert tree.num_vertices() == 2, "Tree should still have 2 vertices"
+    assert tree.num_edges() == 1, "Tree should still have 1 edge"
+
+
+@pytest.mark.unit
+def test_remove_subtree_cannot_remove_root():
+    """Test remove_subtree behavior when attempting to remove root.
+
+    This test verifies the behavior when attempting to remove the root node.
+    The root should be removable, which would leave an empty tree structure.
+
+    Expected in RED phase: Test FAILS (remove_subtree doesn't exist yet)
+    """
+    # Create a tree with root and children
+    tree = Tree("A")
+    tree.add_child("A", "B")
+    tree.add_child("A", "C")
+
+    # Remove the root (should remove entire tree)
+    tree.remove_subtree("A")
+
+    # Verify the tree is now empty (or has special handling for root removal)
+    # Note: The exact behavior may depend on design decisions
+    # For now, we expect all vertices to be removed
+    assert tree.num_vertices() == 0, "Tree should be empty after removing root"
+    assert tree.num_edges() == 0, "Tree should have no edges after removing root"
+
+
+@pytest.mark.unit
+def test_remove_subtree_with_deep_nesting():
+    """Test remove_subtree with deeply nested structure.
+
+    This test verifies that remove_subtree correctly removes all descendants
+    even in deeply nested tree structures.
+
+    Expected in RED phase: Test FAILS (remove_subtree doesn't exist yet)
+    """
+    # Create a deep tree: A -> B -> C -> D -> E
+    tree = Tree("A")
+    tree.add_child("A", "B")
+    tree.add_child("B", "C")
+    tree.add_child("C", "D")
+    tree.add_child("D", "E")
+
+    # Remove subtree rooted at B (should remove B, C, D, E)
+    tree.remove_subtree("B")
+
+    # Verify only A remains
+    assert tree.num_vertices() == 1, f"Tree should have 1 vertex, got {tree.num_vertices()}"
+    assert tree.num_edges() == 0, f"Tree should have 0 edges, got {tree.num_edges()}"
+    assert "A" in tree.vertices(), "A should still be in tree"
+
+    # Verify all descendants are removed
+    for vertex in ["B", "C", "D", "E"]:
+        assert vertex not in tree.vertices(), f"{vertex} should be removed from tree"
+
+
+# ============================================================================
+# Task 3.3: Query Methods Tests (RED Phase)
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_parent_returns_correct_parent_using_parent_map():
+    """Test parent() returns correct parent using _parent_map.
+
+    This test verifies that the parent() method correctly returns the parent
+    of a node using the internal _parent_map for O(1) lookup.
+
+    Expected in RED phase: Test PASSES (parent already implemented in Task 3.2)
+    """
+    # Create a tree with multiple levels
+    tree = Tree("A")
+    tree.add_child("A", "B")
+    tree.add_child("A", "C")
+    tree.add_child("B", "D")
+
+    # Test parent lookups
+    assert tree.parent("B") == "A", "Parent of B should be A"
+    assert tree.parent("C") == "A", "Parent of C should be A"
+    assert tree.parent("D") == "B", "Parent of D should be B"
+    assert tree.parent("A") is None, "Root A should have no parent"
+
+
+@pytest.mark.unit
+def test_children_returns_all_children_of_node():
+    """Test children() returns all children of a node.
+
+    This test verifies that the children() method returns a set containing
+    all direct children of a given node.
+
+    Expected in RED phase: Test PASSES (children already implemented in Task 3.2)
+    """
+    # Create a tree with multiple children
+    tree = Tree("A")
+    tree.add_child("A", "B")
+    tree.add_child("A", "C")
+    tree.add_child("A", "D")
+    tree.add_child("B", "E")
+
+    # Test children lookups
+    children_a = tree.children("A")
+    assert children_a == {"B", "C", "D"}, f"Children of A should be {{B, C, D}}, got {children_a}"
+
+    children_b = tree.children("B")
+    assert children_b == {"E"}, f"Children of B should be {{E}}, got {children_b}"
+
+    children_e = tree.children("E")
+    assert children_e == set(), f"Children of E should be empty set, got {children_e}"
+
+
+@pytest.mark.unit
+def test_is_leaf_correctly_identifies_leaf_nodes():
+    """Test is_leaf() correctly identifies leaf nodes.
+
+    This test verifies that is_leaf() returns True for nodes with no children
+    and False for nodes with children.
+
+    Expected in RED phase: Test FAILS (is_leaf doesn't exist yet)
+    """
+    # Create a tree:
+    #       A
+    #      / \
+    #     B   C
+    #    /
+    #   D
+    tree = Tree("A")
+    tree.add_child("A", "B")
+    tree.add_child("A", "C")
+    tree.add_child("B", "D")
+
+    # Test is_leaf
+    assert tree.is_leaf("C") is True, "C should be a leaf (no children)"
+    assert tree.is_leaf("D") is True, "D should be a leaf (no children)"
+    assert tree.is_leaf("B") is False, "B should not be a leaf (has child D)"
+    assert tree.is_leaf("A") is False, "A should not be a leaf (has children B and C)"
+
+
+@pytest.mark.unit
+def test_is_root_correctly_identifies_root_node():
+    """Test is_root() correctly identifies root node.
+
+    This test verifies that is_root() returns True only for the root node
+    and False for all other nodes.
+
+    Expected in RED phase: Test FAILS (is_root doesn't exist yet)
+    """
+    # Create a tree
+    tree = Tree("A")
+    tree.add_child("A", "B")
+    tree.add_child("A", "C")
+    tree.add_child("B", "D")
+
+    # Test is_root
+    assert tree.is_root("A") is True, "A should be the root"
+    assert tree.is_root("B") is False, "B should not be the root"
+    assert tree.is_root("C") is False, "C should not be the root"
+    assert tree.is_root("D") is False, "D should not be the root"
+
+
+@pytest.mark.unit
+def test_height_calculates_tree_height_correctly():
+    """Test height() calculates tree height correctly.
+
+    This test verifies that height() returns the maximum distance from
+    the root to any leaf node. Height of a single-node tree is 0.
+
+    Expected in RED phase: Test FAILS (height doesn't exist yet)
+    """
+    # Test 1: Single node tree (height = 0)
+    tree1 = Tree("A")
+    assert tree1.height() == 0, "Height of single-node tree should be 0"
+
+    # Test 2: Tree with one level (height = 1)
+    tree2 = Tree("A")
+    tree2.add_child("A", "B")
+    assert tree2.height() == 1, "Height of tree with one level should be 1"
+
+    # Test 3: Tree with multiple levels (height = 2)
+    #       A
+    #      / \
+    #     B   C
+    #    /
+    #   D
+    tree3 = Tree("A")
+    tree3.add_child("A", "B")
+    tree3.add_child("A", "C")
+    tree3.add_child("B", "D")
+    assert tree3.height() == 2, "Height should be 2 (A -> B -> D)"
+
+    # Test 4: Deeper tree (height = 3)
+    tree4 = Tree("A")
+    tree4.add_child("A", "B")
+    tree4.add_child("B", "C")
+    tree4.add_child("C", "D")
+    assert tree4.height() == 3, "Height should be 3 (A -> B -> C -> D)"
+
+
+@pytest.mark.unit
+def test_depth_calculates_node_depth_correctly():
+    """Test depth() calculates node depth correctly.
+
+    This test verifies that depth() returns the distance from the root
+    to the specified node. Root has depth 0.
+
+    Expected in RED phase: Test FAILS (depth doesn't exist yet)
+    """
+    # Create a tree:
+    #       A (depth 0)
+    #      / \
+    #     B   C (depth 1)
+    #    /
+    #   D (depth 2)
+    tree = Tree("A")
+    tree.add_child("A", "B")
+    tree.add_child("A", "C")
+    tree.add_child("B", "D")
+
+    # Test depth calculations
+    assert tree.depth("A") == 0, "Depth of root should be 0"
+    assert tree.depth("B") == 1, "Depth of B should be 1"
+    assert tree.depth("C") == 1, "Depth of C should be 1"
+    assert tree.depth("D") == 2, "Depth of D should be 2"
+
+
+@pytest.mark.unit
+def test_query_methods_raise_error_for_nonexistent_nodes():
+    """Test query methods raise VertexNotFoundError for non-existent nodes.
+
+    This test verifies that all query methods properly validate that the
+    node exists in the tree before performing operations.
+
+    Expected in RED phase: Test FAILS (some methods don't exist yet)
+    """
+    # Create a simple tree
+    tree = Tree("A")
+    tree.add_child("A", "B")
+
+    # Test parent() - already implemented, should work
+    with pytest.raises(VertexNotFoundError):
+        tree.parent("NonExistent")
+
+    # Test children() - already implemented, should work
+    with pytest.raises(VertexNotFoundError):
+        tree.children("NonExistent")
+
+    # Test is_leaf() - not implemented yet
+    with pytest.raises(VertexNotFoundError):
+        tree.is_leaf("NonExistent")
+
+    # Test is_root() - not implemented yet
+    with pytest.raises(VertexNotFoundError):
+        tree.is_root("NonExistent")
+
+    # Test depth() - not implemented yet
+    with pytest.raises(VertexNotFoundError):
+        tree.depth("NonExistent")
+
+
+@pytest.mark.unit
+def test_is_leaf_on_single_node_tree():
+    """Test is_leaf() on a single-node tree.
+
+    This test verifies that the root of a single-node tree is considered
+    a leaf (since it has no children).
+
+    Expected in RED phase: Test FAILS (is_leaf doesn't exist yet)
+    """
+    # Create a single-node tree
+    tree = Tree("A")
+
+    # Root with no children should be a leaf
+    assert tree.is_leaf("A") is True, "Root with no children should be a leaf"
+
+
+@pytest.mark.unit
+def test_height_with_unbalanced_tree():
+    """Test height() with an unbalanced tree.
+
+    This test verifies that height() correctly calculates the height
+    for unbalanced trees (where branches have different depths).
+
+    Expected in RED phase: Test FAILS (height doesn't exist yet)
+    """
+    # Create an unbalanced tree:
+    #       A
+    #      / \
+    #     B   C
+    #    /     \
+    #   D       E
+    #  /         \
+    # F           G
+    tree = Tree("A")
+    tree.add_child("A", "B")
+    tree.add_child("A", "C")
+    tree.add_child("B", "D")
+    tree.add_child("C", "E")
+    tree.add_child("D", "F")
+    tree.add_child("E", "G")
+
+    # Height should be 3 (longest path: A -> B -> D -> F or A -> C -> E -> G)
+    assert tree.height() == 3, "Height of unbalanced tree should be 3"
+
+
+@pytest.mark.unit
+def test_depth_with_multiple_children():
+    """Test depth() with nodes having multiple children.
+
+    This test verifies that depth() works correctly in trees where
+    nodes have multiple children.
+
+    Expected in RED phase: Test FAILS (depth doesn't exist yet)
+    """
+    # Create a tree with multiple children:
+    #         A
+    #       / | \
+    #      B  C  D
+    #     /
+    #    E
+    tree = Tree("A")
+    tree.add_child("A", "B")
+    tree.add_child("A", "C")
+    tree.add_child("A", "D")
+    tree.add_child("B", "E")
+
+    # Test depths
+    assert tree.depth("A") == 0, "Depth of root should be 0"
+    assert tree.depth("B") == 1, "Depth of B should be 1"
+    assert tree.depth("C") == 1, "Depth of C should be 1"
+    assert tree.depth("D") == 1, "Depth of D should be 1"
+    assert tree.depth("E") == 2, "Depth of E should be 2"
+
+
+# ============================================================================
+# Additional Coverage Tests
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_from_graph_with_valid_directed_graph():
+    """Test Tree.from_graph() with a valid directed graph.
+
+    This test covers the from_graph static method which is currently
+    not covered by existing tests.
+    """
+    # Create a directed graph that forms a tree structure
+    graph = Graph[str](directed=True)
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex("C")
+    graph.add_edge("A", "B")
+    graph.add_edge("A", "C")
+
+    # Convert to tree
+    tree = Tree.from_graph(graph, "A")
+
+    # Verify tree structure
+    assert tree.root == "A"
+    assert tree.num_vertices() == 3
+    assert tree.num_edges() == 2
+    assert tree.parent("B") == "A"
+    assert tree.parent("C") == "A"
+
+
+@pytest.mark.unit
+def test_from_graph_with_undirected_graph_raises_error():
+    """Test Tree.from_graph() raises error for undirected graph.
+
+    This test covers the error handling in from_graph for undirected graphs.
+    """
+    # Create an undirected graph
+    graph = Graph[str](directed=False)
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_edge("A", "B")
+
+    # Attempt to convert to tree should raise ValueError
+    with pytest.raises(ValueError) as exc_info:
+        Tree.from_graph(graph, "A")
+
+    assert "directed" in str(exc_info.value).lower()
+
+
+@pytest.mark.unit
+def test_depth_with_disconnected_vertex_raises_error():
+    """Test depth() raises error for vertex not connected to root.
+
+    This test covers the error case in depth() where a vertex
+    is not connected to the root (which shouldn't happen in a valid tree,
+    but we test the error handling).
+
+    Note: This is a theoretical edge case that shouldn't occur in practice
+    with the current Tree implementation, but we test it for completeness.
+    """
+    # Create a tree
+    tree = Tree("A")
+    tree.add_child("A", "B")
+
+    # Manually break the parent map to simulate a disconnected vertex
+    # This is the only way to trigger the ValueError in depth()
+    tree._parent_map["B"] = None  # pylint: disable=protected-access
+
+    # Now depth("B") should raise ValueError
+    with pytest.raises(ValueError) as exc_info:
+        tree.depth("B")
+
+    assert "not connected to root" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_tree_edges_method_returns_edge_tuples():
+    """Test Tree.edges() returns set of (source, target) tuples.
+
+    This test directly calls the edges() method on Tree to ensure
+    it returns the correct format of edge tuples.
+    """
+    tree = Tree("A")
+    tree.add_child("A", "B")
+    tree.add_child("A", "C")
+    tree.add_child("B", "D")
+
+    # Call edges() directly on tree
+    edges = tree.edges()
+
+    # Should return set of tuples
+    assert isinstance(edges, set), "edges() should return a set"
+    assert len(edges) == 3, "Tree should have 3 edges"
+
+    # Check edge tuples
+    expected_edges = {("A", "B"), ("A", "C"), ("B", "D")}
+    assert edges == expected_edges, f"Expected {expected_edges}, got {edges}"
+
+
+@pytest.mark.unit
+def test_tree_neighbors_method_returns_children():
+    """Test Tree.neighbors() returns children of a vertex.
+
+    This test directly calls the neighbors() method on Tree to ensure
+    it returns the correct set of child vertices.
+    """
+    tree = Tree("A")
+    tree.add_child("A", "B")
+    tree.add_child("A", "C")
+    tree.add_child("B", "D")
+    tree.add_child("B", "E")
+
+    # Call neighbors() directly on tree
+    neighbors_a = tree.neighbors("A")
+    neighbors_b = tree.neighbors("B")
+    neighbors_d = tree.neighbors("D")
+
+    # Check neighbors (children)
+    assert isinstance(neighbors_a, set), "neighbors() should return a set"
+    assert neighbors_a == {"B", "C"}, f"A's neighbors should be B and C, got {neighbors_a}"
+    assert neighbors_b == {"D", "E"}, f"B's neighbors should be D and E, got {neighbors_b}"
+    assert neighbors_d == set(), f"D's neighbors should be empty, got {neighbors_d}"
