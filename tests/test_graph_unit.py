@@ -10,6 +10,8 @@ These tests follow the TDD methodology:
 - REFACTOR phase: Improve implementation while keeping tests green
 """
 
+# pylint: disable=too-many-lines
+
 import pytest
 
 from pygraph.exceptions import EdgeNotFoundError, VertexNotFoundError
@@ -796,3 +798,330 @@ def test_graph_out_degree_nonexistent_vertex():
 
     with pytest.raises(VertexNotFoundError, match="Vertex 'nonexistent' not found"):
         graph.out_degree("nonexistent")
+
+
+# Representation Conversion Tests (RED phase - should fail)
+
+
+@pytest.mark.unit
+def test_graph_convert_adjacency_list_to_matrix():
+    """Test converting from adjacency list to adjacency matrix."""
+    # Create graph with adjacency list
+    graph = Graph(directed=False, representation="adjacency_list")
+
+    # Add vertices and edges
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex("C")
+    graph.add_edge("A", "B", weight=1.5, metadata={"type": "road"})
+    graph.add_edge("B", "C", weight=2.0, metadata={"type": "highway"})
+
+    # Capture initial state
+    initial_vertices = graph.vertices().copy()
+    initial_edges = graph.edges().copy()
+    initial_vertex_count = graph.num_vertices()
+    initial_edge_count = graph.num_edges()
+
+    # Convert to adjacency matrix
+    graph.convert_representation("adjacency_matrix")
+
+    # Verify representation changed
+    assert graph.representation == "adjacency_matrix"
+
+    # Verify all data preserved
+    assert graph.vertices() == initial_vertices
+    assert graph.edges() == initial_edges
+    assert graph.num_vertices() == initial_vertex_count
+    assert graph.num_edges() == initial_edge_count
+
+    # Verify edges still work correctly
+    assert graph.has_edge("A", "B")
+    assert graph.has_edge("B", "C")
+
+    # Verify edge data preserved
+    edge_ab = graph.get_edge("A", "B")
+    assert edge_ab.weight == 1.5
+    assert edge_ab.metadata == {"type": "road"}
+
+    edge_bc = graph.get_edge("B", "C")
+    assert edge_bc.weight == 2.0
+    assert edge_bc.metadata == {"type": "highway"}
+
+
+@pytest.mark.unit
+def test_graph_convert_adjacency_matrix_to_list():
+    """Test converting from adjacency matrix to adjacency list."""
+    # Create graph with adjacency matrix
+    graph = Graph(directed=True, representation="adjacency_matrix")
+
+    # Add vertices and edges
+    graph.add_vertex("X")
+    graph.add_vertex("Y")
+    graph.add_vertex("Z")
+    graph.add_edge("X", "Y", weight=3.0, metadata={"distance": 100})
+    graph.add_edge("Y", "Z", weight=4.5, metadata={"distance": 150})
+
+    # Capture initial state
+    initial_vertices = graph.vertices().copy()
+    initial_edges = graph.edges().copy()
+    initial_vertex_count = graph.num_vertices()
+    initial_edge_count = graph.num_edges()
+
+    # Convert to adjacency list
+    graph.convert_representation("adjacency_list")
+
+    # Verify representation changed
+    assert graph.representation == "adjacency_list"
+
+    # Verify all data preserved
+    assert graph.vertices() == initial_vertices
+    assert graph.edges() == initial_edges
+    assert graph.num_vertices() == initial_vertex_count
+    assert graph.num_edges() == initial_edge_count
+
+    # Verify edges still work correctly
+    assert graph.has_edge("X", "Y")
+    assert graph.has_edge("Y", "Z")
+
+    # Verify edge data preserved
+    edge_xy = graph.get_edge("X", "Y")
+    assert edge_xy.weight == 3.0
+    assert edge_xy.metadata == {"distance": 100}
+
+    edge_yz = graph.get_edge("Y", "Z")
+    assert edge_yz.weight == 4.5
+    assert edge_yz.metadata == {"distance": 150}
+
+
+@pytest.mark.unit
+def test_graph_convert_round_trip_list_matrix_list():
+    """Test round-trip conversion: list -> matrix -> list."""
+    # Create graph with adjacency list
+    graph = Graph(directed=False, weighted=True, representation="adjacency_list")
+
+    # Add vertices and edges
+    graph.add_vertex(1)
+    graph.add_vertex(2)
+    graph.add_vertex(3)
+    graph.add_edge(1, 2, weight=10.0, metadata={"label": "edge1"})
+    graph.add_edge(2, 3, weight=20.0, metadata={"label": "edge2"})
+    graph.add_edge(1, 3, weight=15.0, metadata={"label": "edge3"})
+
+    # Capture initial state
+    initial_vertices = graph.vertices().copy()
+    initial_edges = graph.edges().copy()
+    initial_directed = graph.directed
+    initial_weighted = graph.weighted
+
+    # Convert to matrix
+    graph.convert_representation("adjacency_matrix")
+    assert graph.representation == "adjacency_matrix"
+
+    # Convert back to list
+    graph.convert_representation("adjacency_list")
+    assert graph.representation == "adjacency_list"
+
+    # Verify all data preserved after round-trip
+    assert graph.vertices() == initial_vertices
+    assert graph.edges() == initial_edges
+    assert graph.directed == initial_directed
+    assert graph.weighted == initial_weighted
+
+    # Verify all edges and their data
+    edge_12 = graph.get_edge(1, 2)
+    assert edge_12.weight == 10.0
+    assert edge_12.metadata == {"label": "edge1"}
+
+    edge_23 = graph.get_edge(2, 3)
+    assert edge_23.weight == 20.0
+    assert edge_23.metadata == {"label": "edge2"}
+
+    edge_13 = graph.get_edge(1, 3)
+    assert edge_13.weight == 15.0
+    assert edge_13.metadata == {"label": "edge3"}
+
+
+@pytest.mark.unit
+def test_graph_convert_round_trip_matrix_list_matrix():
+    """Test round-trip conversion: matrix -> list -> matrix."""
+    # Create graph with adjacency matrix
+    graph = Graph(directed=True, weighted=True, representation="adjacency_matrix")
+
+    # Add vertices and edges
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex("C")
+    graph.add_edge("A", "B", weight=5.5, metadata={"cost": 100})
+    graph.add_edge("B", "C", weight=7.5, metadata={"cost": 200})
+
+    # Capture initial state
+    initial_vertices = graph.vertices().copy()
+    initial_edges = graph.edges().copy()
+    initial_directed = graph.directed
+    initial_weighted = graph.weighted
+
+    # Convert to list
+    graph.convert_representation("adjacency_list")
+    assert graph.representation == "adjacency_list"
+
+    # Convert back to matrix
+    graph.convert_representation("adjacency_matrix")
+    assert graph.representation == "adjacency_matrix"
+
+    # Verify all data preserved after round-trip
+    assert graph.vertices() == initial_vertices
+    assert graph.edges() == initial_edges
+    assert graph.directed == initial_directed
+    assert graph.weighted == initial_weighted
+
+    # Verify all edges and their data
+    edge_ab = graph.get_edge("A", "B")
+    assert edge_ab.weight == 5.5
+    assert edge_ab.metadata == {"cost": 100}
+
+    edge_bc = graph.get_edge("B", "C")
+    assert edge_bc.weight == 7.5
+    assert edge_bc.metadata == {"cost": 200}
+
+
+@pytest.mark.unit
+def test_graph_convert_updates_representation_attribute():
+    """Test that conversion updates the _representation attribute correctly."""
+    # Start with adjacency list
+    graph = Graph(representation="adjacency_list")
+    assert graph.representation == "adjacency_list"
+
+    # Convert to matrix
+    graph.convert_representation("adjacency_matrix")
+    assert graph.representation == "adjacency_matrix"
+
+    # Convert back to list
+    graph.convert_representation("adjacency_list")
+    assert graph.representation == "adjacency_list"
+
+
+@pytest.mark.unit
+def test_graph_convert_empty_graph():
+    """Test converting representation of an empty graph."""
+    # Create empty graph with adjacency list
+    graph = Graph(representation="adjacency_list")
+    assert graph.num_vertices() == 0
+    assert graph.num_edges() == 0
+
+    # Convert to matrix
+    graph.convert_representation("adjacency_matrix")
+    assert graph.representation == "adjacency_matrix"
+    assert graph.num_vertices() == 0
+    assert graph.num_edges() == 0
+
+    # Convert back to list
+    graph.convert_representation("adjacency_list")
+    assert graph.representation == "adjacency_list"
+    assert graph.num_vertices() == 0
+    assert graph.num_edges() == 0
+
+
+@pytest.mark.unit
+def test_graph_convert_single_vertex_no_edges():
+    """Test converting graph with single vertex and no edges."""
+    # Create graph with single vertex
+    graph = Graph(representation="adjacency_list")
+    graph.add_vertex("solo")
+
+    # Convert to matrix
+    graph.convert_representation("adjacency_matrix")
+    assert graph.representation == "adjacency_matrix"
+    assert graph.num_vertices() == 1
+    assert graph.num_edges() == 0
+    assert "solo" in graph.vertices()
+
+    # Convert back to list
+    graph.convert_representation("adjacency_list")
+    assert graph.representation == "adjacency_list"
+    assert graph.num_vertices() == 1
+    assert graph.num_edges() == 0
+    assert "solo" in graph.vertices()
+
+
+@pytest.mark.unit
+def test_graph_convert_preserves_directed_property():
+    """Test that conversion preserves the directed property."""
+    # Directed graph
+    graph_directed = Graph(directed=True, representation="adjacency_list")
+    graph_directed.add_vertex("A")
+    graph_directed.add_vertex("B")
+    graph_directed.add_edge("A", "B", weight=1.0)
+
+    graph_directed.convert_representation("adjacency_matrix")
+    assert graph_directed.directed is True
+    assert graph_directed.has_edge("A", "B")
+    assert not graph_directed.has_edge("B", "A")
+
+    # Undirected graph
+    graph_undirected = Graph(directed=False, representation="adjacency_list")
+    graph_undirected.add_vertex("X")
+    graph_undirected.add_vertex("Y")
+    graph_undirected.add_edge("X", "Y", weight=1.0)
+
+    graph_undirected.convert_representation("adjacency_matrix")
+    assert graph_undirected.directed is False
+    assert graph_undirected.has_edge("X", "Y")
+    assert graph_undirected.has_edge("Y", "X")
+
+
+@pytest.mark.unit
+def test_graph_convert_preserves_weighted_property():
+    """Test that conversion preserves the weighted property."""
+    # Weighted graph
+    graph_weighted = Graph(weighted=True, representation="adjacency_list")
+    graph_weighted.add_vertex("A")
+    graph_weighted.add_vertex("B")
+    graph_weighted.add_edge("A", "B", weight=5.5)
+
+    graph_weighted.convert_representation("adjacency_matrix")
+    assert graph_weighted.weighted is True
+    edge = graph_weighted.get_edge("A", "B")
+    assert edge.weight == 5.5
+
+    # Unweighted graph
+    graph_unweighted = Graph(weighted=False, representation="adjacency_list")
+    graph_unweighted.add_vertex("X")
+    graph_unweighted.add_vertex("Y")
+    graph_unweighted.add_edge("X", "Y", weight=1.0)
+
+    graph_unweighted.convert_representation("adjacency_matrix")
+    assert graph_unweighted.weighted is False
+
+
+@pytest.mark.unit
+def test_graph_convert_invalid_representation():
+    """Test that converting to invalid representation raises ValueError."""
+    graph = Graph(representation="adjacency_list")
+    graph.add_vertex("A")
+
+    with pytest.raises(ValueError, match="Invalid representation"):
+        graph.convert_representation("invalid_representation")
+
+    # Verify graph state unchanged after failed conversion
+    assert graph.representation == "adjacency_list"
+    assert graph.num_vertices() == 1
+
+
+@pytest.mark.unit
+def test_graph_convert_to_same_representation():
+    """Test converting to the same representation (should be no-op or idempotent)."""
+    graph = Graph(representation="adjacency_list")
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_edge("A", "B", weight=2.0)
+
+    initial_vertices = graph.vertices().copy()
+    initial_edges = graph.edges().copy()
+
+    # Convert to same representation
+    graph.convert_representation("adjacency_list")
+
+    # Should remain unchanged
+    assert graph.representation == "adjacency_list"
+    assert graph.vertices() == initial_vertices
+    assert graph.edges() == initial_edges

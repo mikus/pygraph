@@ -666,6 +666,75 @@ class Graph[V: Hashable]:
         # For directed graphs, out-degree equals the number of neighbors
         return len(self.neighbors(vertex))
 
+    # Representation Conversion Methods
+
+    def convert_representation(self, target: Literal["adjacency_list", "adjacency_matrix"]) -> None:
+        """Convert the graph's internal representation.
+
+        This method converts between adjacency list and adjacency matrix representations
+        while preserving all graph data (vertices, edges, weights, metadata, and properties).
+
+        Args:
+            target: The target representation ("adjacency_list" or "adjacency_matrix")
+
+        Raises:
+            ValueError: If target representation is invalid
+
+        Examples:
+            >>> # Convert from adjacency list to matrix
+            >>> graph = Graph[str](representation="adjacency_list")
+            >>> graph.add_vertex("A")
+            >>> graph.add_vertex("B")
+            >>> graph.add_edge("A", "B", weight=5.0)
+            >>> graph.convert_representation("adjacency_matrix")
+            >>> graph.representation
+            'adjacency_matrix'
+            >>> graph.has_edge("A", "B")
+            True
+
+            >>> # Convert back to adjacency list
+            >>> graph.convert_representation("adjacency_list")
+            >>> graph.representation
+            'adjacency_list'
+            >>> graph.has_edge("A", "B")
+            True
+        """
+        # Validate target representation
+        if target not in self._VALID_REPRESENTATIONS:
+            raise ValueError(
+                f"Invalid representation '{target}'. "
+                f"Must be one of: {', '.join(sorted(self._VALID_REPRESENTATIONS))}"
+            )
+
+        # If already using target representation, no conversion needed
+        if self._representation == target:
+            return
+
+        # Capture current graph data
+        vertices = self.vertices().copy()
+        edges = self.edges().copy()
+
+        new_repr: GraphRepresentation[V] = None
+
+        # Convert to target representation
+        if target == "adjacency_list":
+            new_repr = AdjacencyList[V](self._directed)
+        else:  # target == "adjacency_matrix"
+            new_repr = AdjacencyMatrix[V](self._directed)
+
+        # Add all vertices
+        for vertex in vertices:
+            new_repr.add_vertex(vertex)
+
+        # Add all edges with their weights and metadata
+        for edge in edges:
+            new_repr.add_edge(edge.source, edge.target, edge.weight, edge.metadata)
+
+        # Replace representation
+        self._repr = new_repr
+        # Update representation attribute
+        self._representation = target
+
     # Protocol Implementation
 
     def to_graph(self) -> Graph[V]:

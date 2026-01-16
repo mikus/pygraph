@@ -796,3 +796,191 @@ def test_property_in_degree_and_out_degree(vertices, edge_pairs):
         # Expected: in_degree() or out_degree() method doesn't exist yet (RED phase)
         # This test should fail until the methods are implemented
         pytest.fail("in_degree() or out_degree() method not implemented yet (expected in RED phase)")
+
+
+@pytest.mark.property
+@settings(max_examples=100)
+@given(
+    directed=st.booleans(),
+    weighted=st.booleans(),
+    initial_representation=st.sampled_from(["adjacency_list", "adjacency_matrix"]),
+    vertices=st.lists(st.integers(), min_size=0, max_size=10, unique=True),
+    edge_pairs=st.lists(
+        st.tuples(
+            st.integers(min_value=0, max_value=9),
+            st.integers(min_value=0, max_value=9),
+            st.floats(min_value=0.1, max_value=100.0, allow_nan=False, allow_infinity=False),
+            st.dictionaries(
+                keys=st.text(min_size=1, max_size=5),
+                values=st.one_of(st.text(), st.integers()),
+                max_size=3,
+            ),
+        ),
+        min_size=0,
+        max_size=15,
+    ),
+)
+def test_property_repr_conversion_preserves_graph(directed, weighted, initial_representation, vertices, edge_pairs):
+    """Property: Representation conversion preserves graph.
+
+    Feature: graph-library, Property 20: For any graph, converting from adjacency
+    list to adjacency matrix (or vice versa) should preserve all vertices, edges,
+    weights, and metadata.
+
+    **Validates: Requirements A3.4**
+
+    This test verifies that when a graph's internal representation is converted
+    between adjacency list and adjacency matrix, all graph data is preserved:
+    - All vertices remain in the graph
+    - All edges remain in the graph
+    - Edge weights are preserved
+    - Edge metadata is preserved
+    - Graph properties (directed, weighted) are preserved
+    """
+    # Skip if we don't have any vertices
+    if len(vertices) == 0:
+        return
+
+    # Create a graph with the initial representation
+    graph = Graph(directed=directed, weighted=weighted, representation=initial_representation)
+
+    # Add vertices
+    for vertex in vertices:
+        graph.add_vertex(vertex)
+
+    # Add edges based on edge_pairs
+    added_edges = []
+    for source_idx, target_idx, weight, metadata in edge_pairs:
+        # Map indices to actual vertices
+        source = vertices[source_idx % len(vertices)]
+        target = vertices[target_idx % len(vertices)]
+
+        # Skip self-loops for this test
+        if source == target:
+            continue
+
+        # Skip if edge already exists (for idempotency)
+        if graph.has_edge(source, target):
+            continue
+
+        # Add edge
+        try:
+            graph.add_edge(source, target, weight=weight, metadata=metadata)
+            added_edges.append((source, target, weight, metadata))
+        except Exception:  # pylint: disable=broad-except
+            # Skip if edge addition fails for any reason
+            continue
+
+    # Capture initial state before conversion
+    initial_vertices = graph.vertices().copy()
+    initial_edges = graph.edges().copy()
+    initial_vertex_count = graph.num_vertices()
+    initial_edge_count = graph.num_edges()
+    initial_directed = graph.directed
+    initial_weighted = graph.weighted
+
+    # Determine target representation (opposite of initial)
+    target_representation = "adjacency_matrix" if initial_representation == "adjacency_list" else "adjacency_list"
+
+    # Property: Converting representation should preserve all graph data
+    try:
+        # Convert to target representation
+        graph.convert_representation(target_representation)
+
+        # Verify representation changed
+        assert graph.representation == target_representation, (
+            f"Representation should change from {initial_representation} to {target_representation}, "
+            f"got {graph.representation}"
+        )
+
+        # Verify vertices are preserved
+        final_vertices = graph.vertices()
+        assert final_vertices == initial_vertices, (
+            f"Vertices should be preserved after conversion. " f"Initial: {initial_vertices}, Final: {final_vertices}"
+        )
+
+        # Verify vertex count is preserved
+        final_vertex_count = graph.num_vertices()
+        assert final_vertex_count == initial_vertex_count, (
+            f"Vertex count should be preserved after conversion. "
+            f"Initial: {initial_vertex_count}, Final: {final_vertex_count}"
+        )
+
+        # Verify edges are preserved
+        final_edges = graph.edges()
+        assert final_edges == initial_edges, (
+            f"Edges should be preserved after conversion. " f"Initial: {initial_edges}, Final: {final_edges}"
+        )
+
+        # Verify edge count is preserved
+        final_edge_count = graph.num_edges()
+        assert final_edge_count == initial_edge_count, (
+            f"Edge count should be preserved after conversion. "
+            f"Initial: {initial_edge_count}, Final: {final_edge_count}"
+        )
+
+        # Verify graph properties are preserved
+        assert graph.directed == initial_directed, (
+            f"Directed property should be preserved. " f"Initial: {initial_directed}, Final: {graph.directed}"
+        )
+
+        assert graph.weighted == initial_weighted, (
+            f"Weighted property should be preserved. " f"Initial: {initial_weighted}, Final: {graph.weighted}"
+        )
+
+        # Verify each edge's weight and metadata are preserved
+        for source, target, weight, metadata in added_edges:
+            # Check edge still exists
+            assert graph.has_edge(source, target), f"Edge ({source}, {target}) should still exist after conversion"
+
+            # Get edge and verify weight and metadata
+            edge = graph.get_edge(source, target)
+            assert edge.weight == weight, (
+                f"Edge ({source}, {target}) weight should be preserved. " f"Expected: {weight}, Got: {edge.weight}"
+            )
+
+            assert edge.metadata == metadata, (
+                f"Edge ({source}, {target}) metadata should be preserved. "
+                f"Expected: {metadata}, Got: {edge.metadata}"
+            )
+
+        # Test round-trip conversion (convert back to original representation)
+        graph.convert_representation(initial_representation)
+
+        # Verify representation changed back
+        assert graph.representation == initial_representation, (
+            f"Representation should change back to {initial_representation}, " f"got {graph.representation}"
+        )
+
+        # Verify all data is still preserved after round-trip
+        assert graph.vertices() == initial_vertices, "Vertices should be preserved after round-trip conversion"
+
+        assert graph.edges() == initial_edges, "Edges should be preserved after round-trip conversion"
+
+        assert (
+            graph.num_vertices() == initial_vertex_count
+        ), "Vertex count should be preserved after round-trip conversion"
+
+        assert graph.num_edges() == initial_edge_count, "Edge count should be preserved after round-trip conversion"
+
+        # Verify each edge's weight and metadata are still preserved after round-trip
+        for source, target, weight, metadata in added_edges:
+            assert graph.has_edge(
+                source, target
+            ), f"Edge ({source}, {target}) should still exist after round-trip conversion"
+
+            edge = graph.get_edge(source, target)
+            assert edge.weight == weight, (
+                f"Edge ({source}, {target}) weight should be preserved after round-trip. "
+                f"Expected: {weight}, Got: {edge.weight}"
+            )
+
+            assert edge.metadata == metadata, (
+                f"Edge ({source}, {target}) metadata should be preserved after round-trip. "
+                f"Expected: {metadata}, Got: {edge.metadata}"
+            )
+
+    except AttributeError:
+        # Expected: convert_representation method doesn't exist yet (RED phase)
+        # This test should fail until the method is implemented
+        pytest.fail("convert_representation method not implemented yet (expected in RED phase)")
