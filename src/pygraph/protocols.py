@@ -26,12 +26,11 @@ Example:
     ...     pass
 """
 
-from collections.abc import Hashable, Iterable, Set
+from collections.abc import Hashable
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    # Forward reference to avoid circular imports
-    from .graph import Graph
+    from pygraph.graph import Graph  # pylint: disable=used-before-assignment
 
 
 @runtime_checkable
@@ -60,21 +59,21 @@ class GraphLike[V: Hashable](Protocol):
         ...             print(f"  -> {neighbor}")
     """
 
-    def vertices(self) -> Set[V]:
+    def vertices(self) -> set[V]:
         """Get all vertices in the structure.
 
         Returns:
             A set containing all vertices in the graph-like structure.
         """
 
-    def edges(self) -> Iterable[tuple[V, V]]:
+    def edges(self) -> set[tuple[V, V]]:
         """Get all edges in the structure.
 
         Returns:
             An iterable of (source, target) tuples representing edges.
         """
 
-    def neighbors(self, vertex: V) -> Set[V]:
+    def neighbors(self, vertex: V) -> set[V]:
         """Get adjacent vertices for a given vertex.
 
         Args:
@@ -98,7 +97,7 @@ class GraphLike[V: Hashable](Protocol):
             True if an edge exists from source to target, False otherwise.
         """
 
-    def to_graph(self) -> "Graph[V]":
+    def to_graph(self) -> "Graph[V]":  # noqa: UP037
         """Convert to a Graph representation.
 
         This method allows algorithms to work with a unified Graph interface
@@ -134,11 +133,11 @@ class TraversalContainer[T](Protocol):
         ...         print(f"Visiting: {current}")
     """
 
-    def push(self, item: T) -> None:
+    def push(self, _item: T) -> None:
         """Add an item to the container.
 
         Args:
-            item: The item to add to the container
+            _item: The item to add to the container
         """
 
     def pop(self) -> T:

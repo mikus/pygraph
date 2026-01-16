@@ -26,12 +26,18 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.0.0",
-    "pytest-cov>=4.1.0",
-    "hypothesis>=6.92.0",
-    "black>=24.0.0",
-    "isort>=5.13.0",
-    "pylint>=3.0.0",
+    "pytest>=9.0.0",
+    "pytest-cov>=7.0.0",
+    "hypothesis>=6.150.0",
+    "black>=25.0.0",
+    "prospector[with_everything]>=1.17.3",
+    "isort>=7.0.0",
+    "mypy>=1.19.0",
+    "bandit>=1.9.0",
+    "pyright>=1.1.0",
+    "ruff>=0.14.0",
+    "vulture>=2.14.0",
+    "pyroma>=5.0.0",
 ]
 
 [project.scripts]
@@ -122,140 +128,324 @@ derandomize = false
 # Print example statistics after each test
 verbosity = "normal"
 
-[tool.pylint.main]
-# Python version to target
-py-version = "3.14"
+# =============================================================================
+# Prospector Configuration
+# =============================================================================
+# Prospector is a comprehensive code quality tool that runs multiple linters
+# and analysis tools in a coordinated manner with unified reporting.
 
-# Files or directories to be skipped
-ignore = ["venv", ".venv", "build", "dist", ".git", ".hypothesis", ".pytest_cache", "__pycache__"]
+[tool.prospector]
+# Strictness level: veryhigh, high, medium, low, verylow
+strictness = "high"
 
-# Use multiple processes to speed up Pylint
-jobs = 0  # Auto-detect number of processors
+# Enable warnings for test code
+test-warnings = true
 
-# Pickle collected data for later comparisons
-persistent = true
+# Disable documentation warnings (handled separately)
+doc-warnings = false
 
-# Discover python modules and packages in the file system subtree
-recursive = true
+# Disable member warnings (can be noisy for dynamic attributes)
+member-warnings = false
 
-[tool.pylint.messages_control]
-# Disable specific warnings that may not be relevant for this project
-disable = [
-    "missing-module-docstring",  # Not all modules need docstrings
-    "missing-class-docstring",   # Will be enabled for public classes only
-    "missing-function-docstring", # Will be enabled for public functions only
-    "too-few-public-methods",    # Dataclasses and protocols may have few methods
-    "too-many-arguments",        # Graph algorithms may need many parameters
-    "too-many-instance-attributes", # Graph classes may have many attributes
-    "too-many-locals",           # Complex algorithms may need many local variables
-    "too-many-branches",         # Graph algorithms may have complex branching
-    "too-many-statements",       # Graph algorithms may be lengthy
-    "fixme",                     # Allow TODO comments during development
-]
-
-[tool.pylint.format]
-# Maximum number of characters on a single line
+# Maximum line length (consistent with Black and other tools)
 max-line-length = 120
 
-# Maximum number of lines in a module
-max-module-lines = 1000
+# Output format: grouped, json, yaml, text
+output-format = "grouped"
 
-# String used as indentation unit
-indent-string = "    "
+# Paths to ignore during analysis
+ignore-paths = [
+    "venv",
+    ".venv",
+    "build",
+    "dist",
+    ".git",
+    ".hypothesis",
+    ".pytest_cache",
+    "__pycache__",
+    "htmlcov",
+    "*.egg-info",
+    "scripts",
+]
 
-# Expected format of line ending
-expected-line-ending-format = "LF"
+# Patterns to ignore (regex)
+ignore-patterns = [
+    "(^|/)test_.*\\.py$",
+    "(^|/)scripts/",
+]
 
-[tool.pylint.basic]
-# Good variable names which should always be accepted
+# -----------------------------------------------------------------------------
+# Pylint Configuration (via Prospector)
+# -----------------------------------------------------------------------------
+# Pylint provides comprehensive code quality and style checking
+# Options explained:
+#   max-line-length: Maximum number of characters on a single line
+#   max-args: Maximum number of arguments for function/method
+#   max-attributes: Maximum number of attributes for a class
+#   max-branches: Maximum number of branches for function/method body
+#   max-locals: Maximum number of locals for function/method body
+#   max-statements: Maximum number of statements in function/method body
+#   min-public-methods: Minimum number of public methods for a class
+#   good-names: Variable names which should always be accepted
+
+[tool.prospector.pylint]
+run = true
+# Disable specific warnings that may not be relevant for this project
+disable = [
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "too-few-public-methods",
+    "too-many-arguments",
+    "too-many-instance-attributes",
+    "too-many-locals",
+    "too-many-branches",
+    "too-many-statements",
+    "fixme",
+    "wrong-import-position",  # Allow imports after TYPE_CHECKING block
+    "used-before-assignment", # False positive with TYPE_CHECKING imports
+]
+
+[tool.prospector.pylint.options]
+max-line-length = 120
+max-args = 8
+max-attributes = 12
+max-branches = 15
+max-locals = 20
+max-statements = 60
+min-public-methods = 0
 good-names = ["i", "j", "k", "v", "u", "e", "x", "y", "z", "V", "T", "_"]
 
-# Regular expression matching correct function names
-function-rgx = "[a-z_][a-z0-9_]{2,50}$"
+# -----------------------------------------------------------------------------
+# Pyflakes Configuration (via Prospector)
+# -----------------------------------------------------------------------------
+# Pyflakes provides fast error detection without style checking
 
-# Regular expression matching correct variable names
-variable-rgx = "[a-z_][a-z0-9_]{1,30}$"
+[tool.prospector.pyflakes]
+run = true
 
-# Regular expression matching correct constant names
-const-rgx = "(([A-Z_][A-Z0-9_]*)|(__.*__))$"
+# -----------------------------------------------------------------------------
+# McCabe Complexity Configuration (via Prospector)
+# -----------------------------------------------------------------------------
+# McCabe Complexity Configuration (via Prospector)
+# -----------------------------------------------------------------------------
+# McCabe checks cyclomatic complexity of functions
+# max-complexity: Maximum complexity score before warning
 
-# Regular expression matching correct class names
-class-rgx = "[A-Z_][a-zA-Z0-9]+$"
+[tool.prospector.mccabe]
+run = true
 
-[tool.pylint.design]
-# Maximum number of arguments for function / method
-max-args = 8
+[tool.prospector.mccabe.options]
+max-complexity = 15
 
-# Maximum number of attributes for a class
-max-attributes = 12
+# -----------------------------------------------------------------------------
+# Pycodestyle Configuration (via Prospector)
+# -----------------------------------------------------------------------------
+# Pycodestyle checks PEP 8 style compliance
+# Ignore codes: E203 (whitespace before ':'), W503 (line break before binary operator)
+# These are ignored for Black compatibility
 
-# Maximum number of boolean expressions in an if statement
-max-bool-expr = 5
+[tool.prospector.pycodestyle]
+run = true
 
-# Maximum number of branch for function / method body
-max-branches = 15
+[tool.prospector.pycodestyle.options]
+max-line-length = 120
+ignore = ["E203", "W503"]
 
-# Maximum number of locals for function / method body
-max-locals = 20
+# -----------------------------------------------------------------------------
+# Pydocstyle Configuration (via Prospector)
+# -----------------------------------------------------------------------------
+# Pydocstyle checks docstring conventions
 
-# Maximum number of parents for a class
-max-parents = 7
+[tool.prospector.pydocstyle]
+# Disabled to avoid duplicate docstring checks with pylint
+run = false
 
-# Maximum number of public methods for a class
-max-public-methods = 25
+# -----------------------------------------------------------------------------
+# Pyroma Configuration (via Prospector)
+# -----------------------------------------------------------------------------
+# Pyroma checks package quality and metadata
 
-# Maximum number of return / yield for function / method body
-max-returns = 6
+[tool.prospector.pyroma]
+run = true
 
-# Maximum number of statements in function / method body
-max-statements = 60
+# -----------------------------------------------------------------------------
+# Vulture Configuration (via Prospector)
+# -----------------------------------------------------------------------------
+# Vulture finds unused code
 
-# Minimum number of public methods for a class
-min-public-methods = 0
+[tool.prospector.vulture]
+run = true
 
-[tool.pylint.similarities]
-# Minimum lines number of a similarity
-min-similarity-lines = 8
+# -----------------------------------------------------------------------------
+# Mypy Configuration (via Prospector)
+# -----------------------------------------------------------------------------
+# Mypy provides static type checking (also configured separately below)
 
-# Ignore comments when computing similarities
-ignore-comments = true
+[tool.prospector.mypy]
+# Disabled in prospector due to I/O errors
+# mypy is run separately in check script
+run = false
 
-# Ignore docstrings when computing similarities
-ignore-docstrings = true
+# -----------------------------------------------------------------------------
+# Bandit Configuration (via Prospector)
+# -----------------------------------------------------------------------------
+# Bandit scans for security vulnerabilities (also configured separately below)
 
-# Ignore imports when computing similarities
-ignore-imports = true
+[tool.prospector.bandit]
+run = true
 
-[tool.pylint.typecheck]
-# List of decorators that produce context managers
-contextmanager-decorators = ["contextlib.contextmanager"]
+[tool.prospector.bandit.options]
+exclude = ["scripts"]
 
-# List of members which are set dynamically and missed by pylint inference
-generated-members = []
+# =============================================================================
+# Mypy Configuration (Standalone)
+# =============================================================================
+# Mypy is a static type checker for Python
+# This configuration is used when running mypy standalone or via prospector
 
-# Tells whether missing members accessed in mixin class should be ignored
-ignore-mixin-members = true
+[tool.mypy]
+# Python version to target
+python_version = "3.14"
 
-# Tells whether to warn about missing members when the owner of the attribute is inferred to be None
-ignore-none = true
+# Warn if a function returns Any
+warn_return_any = true
 
-# This flag controls whether pylint should warn about no-member and similar checks whenever an opaque object is returned when inferring
-ignore-on-opaque-inference = true
+# Warn about unused [mypy-...] config sections
+warn_unused_configs = true
 
-[tool.pylint.variables]
-# Tells whether we should check for unused import in __init__ files
-init-import = false
+# Don't require type annotations for all functions (too strict for now)
+disallow_untyped_defs = false
 
-# A regular expression matching the name of dummy variables
-dummy-variables-rgx = "_+$|(_[a-zA-Z0-9_]*[a-zA-Z0-9]+?$)|dummy|^ignored_|^unused_"
+# Don't require complete type annotations (too strict for now)
+disallow_incomplete_defs = false
 
-[tool.pylint.imports]
-# Allow wildcard imports from modules that define __all__
-allow-wildcard-with-all = false
+# Check the body of functions without type annotations
+check_untyped_defs = true
 
-# Deprecated modules which should not be used
-deprecated-modules = []
+# Don't require type annotations for decorators
+disallow_untyped_decorators = false
 
-[tool.pylint.exceptions]
-# Exceptions that will emit a warning when caught
-overgeneral-exceptions = ["builtins.BaseException", "builtins.Exception"]
+# Disallow implicit Optional (e.g., def f(x: int = None) should be def f(x: int | None = None))
+no_implicit_optional = true
+
+# Warn about redundant casts
+warn_redundant_casts = true
+
+# Warn about unused '# type: ignore' comments
+warn_unused_ignores = true
+
+# Warn about functions that don't return a value
+warn_no_return = true
+
+# Warn about unreachable code
+warn_unreachable = true
+
+# Use strict equality checks
+strict_equality = true
+
+# Don't error on missing imports (third-party libraries may not have stubs)
+ignore_missing_imports = true
+
+# Override settings for test files
+[[tool.mypy.overrides]]
+module = "tests.*"
+# Don't require type annotations in tests
+disallow_untyped_defs = false
+
+# =============================================================================
+# Pyright Configuration
+# =============================================================================
+# Pyright is Microsoft's static type checker for Python
+# It catches different issues than mypy and provides additional type checking
+
+[tool.pyright]
+# Python version to target
+pythonVersion = "3.14"
+
+# Type checking mode: off, basic, standard, strict
+typeCheckingMode = "basic"
+
+# Report missing imports
+reportMissingImports = true
+
+# Don't report missing type stubs (third-party libraries may not have them)
+reportMissingTypeStubs = false
+
+# Report unused imports
+reportUnusedImport = true
+
+# Report unused classes
+reportUnusedClass = true
+
+# Report unused functions
+reportUnusedFunction = true
+
+# Report unused variables
+reportUnusedVariable = true
+
+# Report duplicate imports
+reportDuplicateImport = true
+
+# Don't require return statements in protocol methods (docstrings are sufficient)
+reportReturnType = false
+
+# Paths to exclude from type checking
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+]
+
+# =============================================================================
+# Ruff Configuration
+# =============================================================================
+# Ruff is an extremely fast Python linter written in Rust
+# It replaces multiple tools: pyflakes, pycodestyle, isort checks, and more
+
+[tool.ruff]
+# Maximum line length (consistent with Black)
+line-length = 120
+
+# Python version to target
+target-version = "py314"
+
+# Rule categories to enable
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+    "TCH", # flake8-type-checking
+]
+
+# Rules to ignore
+ignore = [
+    "E203", # whitespace before ':' (conflicts with Black)
+    "E501", # line too long (handled by Black)
+]
+
+# Per-file rule ignores
+[tool.ruff.per-file-ignores]
+# Allow assert statements in tests
+"tests/*" = ["S101"]
+
+# =============================================================================
+# Bandit Configuration
+# =============================================================================
+# Bandit is a security linter that scans for common security issues
+
+[tool.bandit]
+# Directories to exclude from scanning
+exclude_dirs = ["tests", ".venv", "venv", "build", "scripts"]
+
+# Security checks to skip
+skips = ["B101"]  # Skip assert_used check (asserts are fine in tests)

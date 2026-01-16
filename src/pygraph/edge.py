@@ -6,8 +6,9 @@ vertices in a graph, including support for weights and arbitrary metadata.
 
 from __future__ import annotations
 
+from collections.abc import Hashable
 from dataclasses import dataclass, field
-from typing import Any, Hashable
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -109,7 +110,7 @@ class Edge[V: Hashable]:
         if not self.directed and self.source != self.target:
             try:
                 # Try to compare vertices - if they're comparable, use canonical order
-                if self.source > self.target:
+                if self.source > self.target:  # type: ignore[operator]
                     # Swap source and target to maintain canonical order
                     # Use object.__setattr__ because dataclass is frozen
                     temp_source = self.source

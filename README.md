@@ -30,8 +30,15 @@ check
 This command runs:
 1. **isort** - Import sorting check
 2. **black** - Code formatting check
-3. **pylint** - Code quality and linting
-4. **pytest** - Tests with coverage report
+3. **prospector** - Comprehensive code quality analysis with integrated tools:
+   - pylint, pyflakes, mccabe, pycodestyle (base tools)
+   - ruff (fast linting)
+   - pyright (type checking)
+   - bandit (security analysis)
+   - pyroma (package quality)
+   - vulture (dead code detection)
+4. **mypy** - Static type checking (run separately)
+5. **pytest** - Tests with coverage report
 
 ### Individual Commands
 
@@ -47,7 +54,13 @@ black --check src/ tests/
 isort --check-only src/ tests/
 
 # Run linting
-pylint src/ tests/ --rcfile=pyproject.toml
+ruff check src/ tests/                    # Fast linting
+
+# Run comprehensive analysis with prospector (includes integrated tools)
+prospector src/ tests/ --with-tool ruff --with-tool pyright --with-tool bandit --with-tool pyroma --with-tool vulture
+
+# Run mypy separately (run separately due to prospector I/O issues)
+mypy src/
 
 # Run tests
 pytest tests/

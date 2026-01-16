@@ -15,11 +15,16 @@ GraphRepresentation protocol, allowing flexible switching between representation
 from __future__ import annotations
 
 from collections.abc import Hashable
-from typing import Literal
+from typing import TYPE_CHECKING, Any, Literal
 
-from pygraph.edge import Edge
+if TYPE_CHECKING:
+    from pygraph.edge import Edge
+
+# pylint: disable=wrong-import-position
 from pygraph.exceptions import EdgeNotFoundError, VertexNotFoundError
 from pygraph.representations import AdjacencyList, AdjacencyMatrix, GraphRepresentation
+
+# pylint: enable=wrong-import-position
 
 
 class Graph[V: Hashable]:
@@ -196,7 +201,15 @@ class Graph[V: Hashable]:
             VertexNotFoundError: If vertex is not in the graph
         """
         if not self._repr.has_vertex(vertex):
-            available = sorted(self._repr.get_vertices()) if self._repr.get_vertices() else "none"
+            vertices = self._repr.get_vertices()
+            if vertices:
+                try:
+                    available: list[V] | str = sorted(vertices)  # type: ignore[type-var]
+                except TypeError:
+                    # Vertices are not comparable, use unsorted
+                    available = list(vertices)
+            else:
+                available = "none"
             raise VertexNotFoundError(
                 f"Vertex '{vertex}' not found in graph for {operation}. Available vertices: {available}"
             )
@@ -299,7 +312,7 @@ class Graph[V: Hashable]:
 
     # Edge Operations
 
-    def add_edge(self, source: V, target: V, weight: float = 1.0, metadata: dict[str, any] | None = None) -> None:
+    def add_edge(self, source: V, target: V, weight: float = 1.0, metadata: dict[str, Any] | None = None) -> None:
         """Add an edge to the graph.
 
         This operation is idempotent - adding an existing edge has no effect.
@@ -488,6 +501,9 @@ class Graph[V: Hashable]:
         """
         self._validate_edge_exists(source, target)
         edge_data = self._repr.get_edge_data(source, target)
+        if edge_data is None:
+            # This should never happen after validation, but handle gracefully
+            raise EdgeNotFoundError(f"Edge ('{source}', '{target}') data not found after validation")
         return edge_data
 
     # Analysis Methods
@@ -714,11 +730,9 @@ class Graph[V: Hashable]:
         vertices = self.vertices().copy()
         edges = self.edges().copy()
 
-        new_repr: GraphRepresentation[V] = None
-
         # Convert to target representation
         if target == "adjacency_list":
-            new_repr = AdjacencyList[V](self._directed)
+            new_repr: GraphRepresentation[V] = AdjacencyList[V](self._directed)
         else:  # target == "adjacency_matrix"
             new_repr = AdjacencyMatrix[V](self._directed)
 

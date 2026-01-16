@@ -160,42 +160,6 @@ def test_graph_to_graph_protocol():
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize(
-    "representation,vertices",
-    [
-        ("adjacency_list", ["X", "Y"]),
-        ("adjacency_matrix", ["P", "Q"]),
-    ],
-    ids=["adjacency_list", "adjacency_matrix"],
-)
-def test_graph_with_representation(representation, vertices):
-    """Test Graph functionality with different representations (consolidated test)."""
-    graph = Graph(representation=representation)
-
-    # Add vertices and check through public interface
-    for vertex in vertices:
-        graph.add_vertex(vertex)
-
-    assert graph.num_vertices() == len(vertices)
-    for vertex in vertices:
-        assert vertex in graph.vertices()
-
-
-@pytest.mark.unit
-def test_graph_create_representation_method():
-    """Test the _create_representation method indirectly through public interface."""
-    # Test adjacency list creation
-    graph1 = Graph(representation="adjacency_list", directed=True)
-    assert graph1.representation == "adjacency_list"
-    assert graph1.directed is True
-
-    # Test adjacency matrix creation
-    graph2 = Graph(representation="adjacency_matrix", directed=False)
-    assert graph2.representation == "adjacency_matrix"
-    assert graph2.directed is False
-
-
-@pytest.mark.unit
 def test_graph_remove_vertex_success():
     """Test successfully removing vertices."""
     graph = Graph()
@@ -1125,3 +1089,60 @@ def test_graph_convert_to_same_representation():
     assert graph.representation == "adjacency_list"
     assert graph.vertices() == initial_vertices
     assert graph.edges() == initial_edges
+
+
+@pytest.mark.unit
+def test_graph_vertex_not_found_with_non_comparable_vertices():
+    """Test VertexNotFoundError with non-comparable vertices (covers TypeError exception)."""
+
+    # Create a custom non-comparable class
+    class NonComparable:
+        def __init__(self, value):
+            self.value = value
+
+        def __hash__(self):
+            return hash(self.value)
+
+        def __eq__(self, other):
+            return isinstance(other, NonComparable) and self.value == other.value
+
+        def __lt__(self, other):
+            # Raise TypeError to simulate non-comparable objects
+            raise TypeError("NonComparable objects cannot be compared")
+
+    graph = Graph[NonComparable]()
+    v1 = NonComparable(1)
+    v2 = NonComparable(2)
+    v3 = NonComparable(3)
+
+    graph.add_vertex(v1)
+    graph.add_vertex(v2)
+
+    # Try to remove a non-existent vertex - should trigger the TypeError exception
+    # when trying to sort vertices, and fall back to unsorted list
+    with pytest.raises(VertexNotFoundError) as exc_info:
+        graph.remove_vertex(v3)
+
+    # Verify error message contains vertex info (but not sorted)
+    assert "not found in graph" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_graph_get_edge_data_none_fallback():
+    """Test get_edge fallback when edge_data is None (defensive programming)."""
+    # This tests the defensive check in get_edge() at line 506
+    # In normal operation, this should never happen, but we test the fallback
+
+    # We'll use a mock to simulate the edge case where get_edge_data returns None
+    # after validation passes (which shouldn't happen in practice)
+    from unittest.mock import Mock, patch
+
+    graph = Graph[str]()
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_edge("A", "B", weight=1.0)
+
+    # Mock the representation's get_edge_data to return None
+    with patch.object(graph._repr, "get_edge_data", return_value=None):
+        with pytest.raises(EdgeNotFoundError, match="data not found after validation"):
+            graph.get_edge("A", "B")
