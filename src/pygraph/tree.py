@@ -24,9 +24,10 @@ Example:
 
 from __future__ import annotations
 
+from collections import deque
 from collections.abc import Hashable
 
-from pygraph.exceptions import CycleError, VertexNotFoundError
+from pygraph.exceptions import CycleError, InvalidGraphError, VertexNotFoundError
 from pygraph.graph import Graph
 
 
@@ -101,7 +102,6 @@ class Tree[V: Hashable]:
         Validates that the operation maintains tree constraints:
         - Parent must exist in the tree
         - Child must not already exist in the tree
-        - Adding the edge must not create a cycle
 
         Args:
             parent: The parent vertex (must exist in tree)
@@ -110,7 +110,7 @@ class Tree[V: Hashable]:
         Raises:
             VertexNotFoundError: If parent vertex doesn't exist
             ValueError: If child vertex already exists
-            CycleError: If adding the edge would create a cycle
+            CycleError: If child already exists with a different parent
 
         Example:
             >>> tree = Tree("A")
@@ -119,11 +119,11 @@ class Tree[V: Hashable]:
             >>> tree.children("A")
             {'B', 'C'}
         """
-        if parent not in self._graph.vertices():
+        if not self._graph.has_vertex(parent):
             raise VertexNotFoundError(f"Parent vertex {parent} does not exist in tree")
 
         # Check if child already exists - in a tree, each vertex has exactly one parent
-        if child in self._graph.vertices():
+        if self._graph.has_vertex(child):
             # Check if this is a duplicate operation (same parent-child relationship)
             if child in self._graph.neighbors(parent):
                 # This is a duplicate - child is already a child of this parent
@@ -160,7 +160,7 @@ class Tree[V: Hashable]:
             >>> tree.num_vertices()
             1
         """
-        if node not in self._graph.vertices():
+        if not self._graph.has_vertex(node):
             raise VertexNotFoundError(f"Vertex {node} does not exist in tree")
 
         # Find all descendants using BFS
@@ -206,7 +206,7 @@ class Tree[V: Hashable]:
             >>> tree.parent("A") is None
             True
         """
-        if vertex not in self._graph.vertices():
+        if not self._graph.has_vertex(vertex):
             raise VertexNotFoundError(f"Vertex {vertex} does not exist in tree")
 
         return self._parent_map.get(vertex)
@@ -255,7 +255,7 @@ class Tree[V: Hashable]:
             >>> tree.is_leaf("B")
             True
         """
-        if vertex not in self._graph.vertices():
+        if not self._graph.has_vertex(vertex):
             raise VertexNotFoundError(f"Vertex {vertex} does not exist in tree")
 
         return len(self.children(vertex)) == 0
@@ -280,7 +280,7 @@ class Tree[V: Hashable]:
             >>> tree.is_root("B")
             False
         """
-        if vertex not in self._graph.vertices():
+        if not self._graph.has_vertex(vertex):
             raise VertexNotFoundError(f"Vertex {vertex} does not exist in tree")
 
         return vertex == self._root
@@ -348,7 +348,7 @@ class Tree[V: Hashable]:
             >>> tree.depth("C")
             2
         """
-        if vertex not in self._graph.vertices():
+        if not self._graph.has_vertex(vertex):
             raise VertexNotFoundError(f"Vertex {vertex} does not exist in tree")
 
         # Root has depth 0
@@ -509,6 +509,89 @@ class Tree[V: Hashable]:
         return self._graph.num_edges()
 
     @staticmethod
+    def _validate_graph_is_directed(graph: Graph[V]) -> None:
+        """Validate that graph is directed.
+
+        Args:
+            graph: The graph to validate
+
+        Raises:
+            ValueError: If graph is not directed
+        """
+        if not graph.directed:
+            raise ValueError("Graph must be directed to convert to tree")
+
+    @staticmethod
+    def _validate_graph_is_connected_from_root(graph: Graph[V], root: V) -> None:
+        """Validate that all vertices are reachable from root.
+
+        Args:
+            graph: The graph to validate
+            root: The root vertex
+
+        Raises:
+            ValueError: If graph is not connected from root
+        """
+        # Use BFS to check if all vertices are reachable from root
+        visited = set()
+        queue = deque([root])
+        visited.add(root)
+
+        while queue:
+            current = queue.popleft()
+            for neighbor in graph.neighbors(current):
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    queue.append(neighbor)
+
+        # Check if all vertices were visited
+        if visited != graph.vertices():
+            unreachable = graph.vertices() - visited
+            raise ValueError(f"Graph is not connected. Vertices {unreachable} are not reachable from root {root}")
+
+    @staticmethod
+    def _validate_tree_property(graph: Graph[V]) -> None:
+        """Validate that graph has tree property (n vertices, n-1 edges).
+
+        Args:
+            graph: The graph to validate
+
+        Raises:
+            InvalidGraphError: If graph doesn't have tree property
+        """
+        if graph.num_edges() != graph.num_vertices() - 1:
+            raise InvalidGraphError(
+                f"Graph does not have tree property. "
+                f"Expected {graph.num_vertices() - 1} edges for {graph.num_vertices()} vertices, "
+                f"but found {graph.num_edges()} edges"
+            )
+
+    @staticmethod
+    def _build_parent_map(graph: Graph[V], root: V) -> dict[V, V]:
+        """Build parent map using BFS traversal from root.
+
+        Args:
+            graph: The graph to traverse
+            root: The root vertex
+
+        Returns:
+            Dictionary mapping each vertex (except root) to its parent
+        """
+        parent_map: dict[V, V] = {}
+        queue_bfs = deque([root])
+        visited_bfs = {root}
+
+        while queue_bfs:
+            current = queue_bfs.popleft()
+            for neighbor in graph.neighbors(current):
+                if neighbor not in visited_bfs:
+                    visited_bfs.add(neighbor)
+                    parent_map[neighbor] = current
+                    queue_bfs.append(neighbor)
+
+        return parent_map
+
+    @staticmethod
     def from_graph(graph: Graph[V], root: V) -> Tree[V]:
         """Create a tree from a graph if it's acyclic and connected.
 
@@ -536,27 +619,23 @@ class Tree[V: Hashable]:
             >>> tree.root
             'A'
         """
-        if not graph.directed:
-            raise ValueError("Graph must be directed to convert to tree")
+        # Validate graph meets tree constraints
+        Tree._validate_graph_is_directed(graph)
+        Tree._validate_graph_is_connected_from_root(graph, root)
 
-        # Check for cycles - for now, we'll implement a simple check
-        # A proper has_cycle will be implemented in Phase 5
-        # For now, we assume the graph is acyclic if it's being converted to a tree
+        # Check for cycles using Graph's has_cycle method
+        if graph.has_cycle():
+            raise ValueError("Graph contains cycles and cannot be converted to a tree")
 
-        # Check connectivity - for now, we'll implement a simple check
-        # A proper is_connected will be implemented in Phase 5
-        # For now, we assume the graph is connected if it's being converted to a tree
+        Tree._validate_tree_property(graph)
 
-        # Create tree with root
+        # All validations passed - create tree
         tree = Tree[V](root)
         tree._graph = graph  # pylint: disable=protected-access
         tree._root = root  # pylint: disable=protected-access
 
-        # Build parent map using BFS traversal
-        # Note: This will be implemented when BFS is available
-        # For now, we'll build it manually by traversing edges
-        for edge in graph.edges():
-            tree._parent_map[edge.target] = edge.source  # pylint: disable=protected-access
+        # Build parent map using BFS traversal from root
+        tree._parent_map = Tree._build_parent_map(graph, root)  # pylint: disable=protected-access
 
         return tree
 

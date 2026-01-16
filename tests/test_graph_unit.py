@@ -101,6 +101,36 @@ def test_graph_add_vertex_success():
 
 
 @pytest.mark.unit
+def test_graph_has_vertex():
+    """Test has_vertex method for efficient vertex existence checking."""
+    graph = Graph()
+
+    # Test with empty graph
+    assert not graph.has_vertex("A")
+    assert not graph.has_vertex("B")
+
+    # Add vertices
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex(42)
+
+    # Test has_vertex returns True for existing vertices
+    assert graph.has_vertex("A")
+    assert graph.has_vertex("B")
+    assert graph.has_vertex(42)
+
+    # Test has_vertex returns False for non-existing vertices
+    assert not graph.has_vertex("C")
+    assert not graph.has_vertex("Z")
+    assert not graph.has_vertex(99)
+
+    # Remove a vertex and verify has_vertex returns False
+    graph.remove_vertex("A")
+    assert not graph.has_vertex("A")
+    assert graph.has_vertex("B")  # Other vertices still exist
+
+
+@pytest.mark.unit
 def test_graph_add_vertex_idempotent():
     """Test that adding the same vertex multiple times is idempotent."""
     graph = Graph()
@@ -1146,3 +1176,176 @@ def test_graph_get_edge_data_none_fallback():
     with patch.object(graph._repr, "get_edge_data", return_value=None):
         with pytest.raises(EdgeNotFoundError, match="data not found after validation"):
             graph.get_edge("A", "B")
+
+
+@pytest.mark.unit
+def test_graph_is_connected_empty_graph():
+    """Test that empty graph is considered connected."""
+    graph = Graph[str]()
+    assert graph.is_connected()
+
+
+@pytest.mark.unit
+def test_graph_is_connected_single_vertex():
+    """Test that single vertex graph is considered connected."""
+    graph = Graph[str]()
+    graph.add_vertex("A")
+    assert graph.is_connected()
+
+
+@pytest.mark.unit
+def test_graph_is_connected_undirected():
+    """Test is_connected for undirected graphs."""
+    graph = Graph[str](directed=False)
+
+    # Connected graph
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex("C")
+    graph.add_edge("A", "B")
+    graph.add_edge("B", "C")
+    assert graph.is_connected()
+
+    # Disconnected graph
+    graph.add_vertex("D")  # Isolated vertex
+    assert not graph.is_connected()
+
+
+@pytest.mark.unit
+def test_graph_is_connected_directed():
+    """Test is_connected for directed graphs (weakly connected)."""
+    # Connected graph - all vertices reachable from any starting point
+    graph1 = Graph[str](directed=True)
+    graph1.add_vertex("A")
+    graph1.add_vertex("B")
+    graph1.add_vertex("C")
+    graph1.add_edge("A", "B")
+    graph1.add_edge("B", "C")
+    graph1.add_edge("C", "A")  # Make it strongly connected
+    assert graph1.is_connected()
+
+    # Disconnected graph - C is isolated
+    graph2 = Graph[str](directed=True)
+    graph2.add_vertex("A")
+    graph2.add_vertex("B")
+    graph2.add_vertex("C")
+    graph2.add_edge("A", "B")
+    # C is not reachable from A or B
+    assert not graph2.is_connected()
+
+
+@pytest.mark.unit
+def test_graph_has_cycle_empty_graph():
+    """Test that empty graph has no cycles."""
+    graph = Graph[str]()
+    assert not graph.has_cycle()
+
+
+@pytest.mark.unit
+def test_graph_has_cycle_directed_acyclic():
+    """Test has_cycle for directed acyclic graph (DAG)."""
+    graph = Graph[str](directed=True)
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex("C")
+    graph.add_edge("A", "B")
+    graph.add_edge("B", "C")
+    assert not graph.has_cycle()
+
+
+@pytest.mark.unit
+def test_graph_has_cycle_directed_cyclic():
+    """Test has_cycle for directed cyclic graph."""
+    graph = Graph[str](directed=True)
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex("C")
+    graph.add_edge("A", "B")
+    graph.add_edge("B", "C")
+    graph.add_edge("C", "A")  # Creates cycle
+    assert graph.has_cycle()
+
+
+@pytest.mark.unit
+def test_graph_has_cycle_undirected_acyclic():
+    """Test has_cycle for undirected acyclic graph (tree)."""
+    graph = Graph[str](directed=False)
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex("C")
+    graph.add_edge("A", "B")
+    graph.add_edge("B", "C")
+    assert not graph.has_cycle()
+
+
+@pytest.mark.unit
+def test_graph_has_cycle_undirected_cyclic():
+    """Test has_cycle for undirected cyclic graph."""
+    graph = Graph[str](directed=False)
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex("C")
+    graph.add_edge("A", "B")
+    graph.add_edge("B", "C")
+    graph.add_edge("C", "A")  # Creates cycle
+    assert graph.has_cycle()
+
+
+@pytest.mark.unit
+def test_graph_has_cycle_directed_disconnected():
+    """Test has_cycle for directed disconnected graph with cycle in one component."""
+    graph = Graph[str](directed=True)
+
+    # Component 1: A -> B -> C -> A (cycle)
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex("C")
+    graph.add_edge("A", "B")
+    graph.add_edge("B", "C")
+    graph.add_edge("C", "A")
+
+    # Component 2: D -> E (no cycle)
+    graph.add_vertex("D")
+    graph.add_vertex("E")
+    graph.add_edge("D", "E")
+
+    assert graph.has_cycle()
+
+
+@pytest.mark.unit
+def test_graph_has_cycle_undirected_disconnected():
+    """Test has_cycle for undirected disconnected graph with cycle in one component."""
+    graph = Graph[str](directed=False)
+
+    # Component 1: A - B - C - A (cycle)
+    graph.add_vertex("A")
+    graph.add_vertex("B")
+    graph.add_vertex("C")
+    graph.add_edge("A", "B")
+    graph.add_edge("B", "C")
+    graph.add_edge("C", "A")
+
+    # Component 2: D - E (no cycle)
+    graph.add_vertex("D")
+    graph.add_vertex("E")
+    graph.add_edge("D", "E")
+
+    assert graph.has_cycle()
+
+
+@pytest.mark.unit
+def test_graph_has_cycle_directed_self_loop():
+    """Test has_cycle detects self-loops in directed graphs."""
+    graph = Graph[str](directed=True)
+    graph.add_vertex("A")
+    graph.add_edge("A", "A")  # Self-loop
+    assert graph.has_cycle()
+
+
+@pytest.mark.unit
+def test_graph_has_cycle_undirected_self_loop():
+    """Test has_cycle detects self-loops in undirected graphs."""
+    graph = Graph[str](directed=False)
+    graph.add_vertex("A")
+    graph.add_edge("A", "A")  # Self-loop
+    assert graph.has_cycle()

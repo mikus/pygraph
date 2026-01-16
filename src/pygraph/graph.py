@@ -14,6 +14,7 @@ GraphRepresentation protocol, allowing flexible switching between representation
 
 from __future__ import annotations
 
+from collections import deque
 from collections.abc import Hashable
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -262,6 +263,30 @@ class Graph[V: Hashable]:
             ['A', 'B']
         """
         return self._repr.get_vertices()
+
+    def has_vertex(self, vertex: V) -> bool:
+        """Check if a vertex exists in the graph.
+
+        This is more efficient than checking `vertex in graph.vertices()`
+        as it delegates directly to the representation without creating a set.
+
+        Args:
+            vertex: The vertex to check
+
+        Returns:
+            True if the vertex exists in the graph, False otherwise
+
+        Examples:
+            >>> graph = Graph[str]()
+            >>> graph.has_vertex("A")
+            False
+            >>> graph.add_vertex("A")
+            >>> graph.has_vertex("A")
+            True
+            >>> graph.has_vertex("B")
+            False
+        """
+        return self._repr.has_vertex(vertex)
 
     def edges(self) -> set[Edge[V]]:
         """Get all edges in the graph.
@@ -681,6 +706,180 @@ class Graph[V: Hashable]:
 
         # For directed graphs, out-degree equals the number of neighbors
         return len(self.neighbors(vertex))
+
+    def is_connected(self) -> bool:
+        """Check if the graph is connected.
+
+        For undirected graphs: Returns True if there is a path between every pair of vertices.
+        For directed graphs: Returns True if all vertices are reachable from any starting vertex
+        (weakly connected - treating edges as undirected for connectivity check).
+
+        An empty graph is considered connected.
+        A graph with a single vertex is considered connected.
+
+        Returns:
+            True if the graph is connected, False otherwise
+
+        Examples:
+            >>> # Connected undirected graph
+            >>> graph = Graph[str](directed=False)
+            >>> graph.add_vertex("A")
+            >>> graph.add_vertex("B")
+            >>> graph.add_vertex("C")
+            >>> graph.add_edge("A", "B", weight=1.0)
+            >>> graph.add_edge("B", "C", weight=1.0)
+            >>> graph.is_connected()
+            True
+
+            >>> # Disconnected graph
+            >>> graph.add_vertex("D")  # Isolated vertex
+            >>> graph.is_connected()
+            False
+
+            >>> # Empty graph is connected
+            >>> empty_graph = Graph[str]()
+            >>> empty_graph.is_connected()
+            True
+
+            >>> # Single vertex is connected
+            >>> single = Graph[str]()
+            >>> single.add_vertex("A")
+            >>> single.is_connected()
+            True
+        """
+        vertices = self.vertices()
+
+        # Empty graph or single vertex is considered connected
+        if len(vertices) <= 1:
+            return True
+
+        # Pick arbitrary starting vertex
+        start = next(iter(vertices))
+
+        # Use BFS to find all reachable vertices
+        visited = set()
+        queue = deque([start])
+        visited.add(start)
+
+        while queue:
+            current = queue.popleft()
+            for neighbor in self.neighbors(current):
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    queue.append(neighbor)
+
+        # Graph is connected if all vertices were visited
+        return visited == vertices
+
+    def has_cycle(self) -> bool:
+        """Check if the graph contains a cycle.
+
+        For directed graphs: Uses DFS with recursion stack to detect back edges.
+        For undirected graphs: Uses DFS tracking parent to avoid false positives from bidirectional edges.
+
+        Returns:
+            True if the graph contains at least one cycle, False otherwise
+
+        Examples:
+            >>> # Acyclic directed graph (DAG)
+            >>> graph = Graph[str](directed=True)
+            >>> graph.add_vertex("A")
+            >>> graph.add_vertex("B")
+            >>> graph.add_vertex("C")
+            >>> graph.add_edge("A", "B", weight=1.0)
+            >>> graph.add_edge("B", "C", weight=1.0)
+            >>> graph.has_cycle()
+            False
+
+            >>> # Cyclic directed graph
+            >>> graph.add_edge("C", "A", weight=1.0)  # Creates cycle A -> B -> C -> A
+            >>> graph.has_cycle()
+            True
+
+            >>> # Acyclic undirected graph (tree)
+            >>> graph = Graph[str](directed=False)
+            >>> graph.add_vertex("A")
+            >>> graph.add_vertex("B")
+            >>> graph.add_vertex("C")
+            >>> graph.add_edge("A", "B", weight=1.0)
+            >>> graph.add_edge("B", "C", weight=1.0)
+            >>> graph.has_cycle()
+            False
+
+            >>> # Cyclic undirected graph
+            >>> graph.add_edge("C", "A", weight=1.0)  # Creates cycle
+            >>> graph.has_cycle()
+            True
+
+            >>> # Empty graph has no cycles
+            >>> empty = Graph[str]()
+            >>> empty.has_cycle()
+            False
+        """
+        if self._directed:
+            return self._has_cycle_directed()
+        return self._has_cycle_undirected()
+
+    def _has_cycle_directed(self) -> bool:
+        """Check for cycles in a directed graph using DFS with recursion stack.
+
+        Returns:
+            True if a cycle is found, False otherwise
+        """
+        visited_global: set[V] = set()
+        rec_stack: set[V] = set()  # Vertices in current DFS path
+
+        def dfs(vertex: V) -> bool:
+            """DFS helper that returns True if cycle is found."""
+            visited_global.add(vertex)
+            rec_stack.add(vertex)
+
+            for neighbor in self.neighbors(vertex):
+                if neighbor not in visited_global:
+                    if dfs(neighbor):
+                        return True
+                elif neighbor in rec_stack:
+                    # Back edge found - cycle detected
+                    return True
+
+            rec_stack.remove(vertex)
+            return False
+
+        # Start DFS from all unvisited vertices
+        for vertex in self.vertices():  # noqa: SIM110
+            if vertex not in visited_global and dfs(vertex):
+                return True
+
+        return False
+
+    def _has_cycle_undirected(self) -> bool:
+        """Check for cycles in an undirected graph using DFS with parent tracking.
+
+        Returns:
+            True if a cycle is found, False otherwise
+        """
+        visited: set[V] = set()
+
+        def dfs(vertex: V, parent: V | None) -> bool:
+            """DFS helper that returns True if cycle is found."""
+            visited.add(vertex)
+
+            for neighbor in self.neighbors(vertex):
+                if neighbor not in visited:
+                    if dfs(neighbor, vertex):
+                        return True
+                elif neighbor != parent:
+                    # Visited neighbor that's not the parent - cycle detected
+                    return True
+
+            return False
+
+        # Start DFS from all unvisited vertices (handles disconnected graphs)
+        for vertex in self.vertices():  # noqa: SIM110
+            if vertex not in visited and dfs(vertex, None):
+                return True
+
+        return False
 
     # Representation Conversion Methods
 
