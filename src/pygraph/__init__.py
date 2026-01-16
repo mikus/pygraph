@@ -21,7 +21,6 @@ __version__ = "0.1.0"
 __author__ = "Graph Library Contributors"
 __license__ = "Apache-2.0"
 
-# from .tree import Tree
 # from .algorithms import bfs, dfs, dijkstra, topological_sort
 from .exceptions import (
     CycleError,
@@ -35,11 +34,12 @@ from .exceptions import (
 # Import main classes for convenient access
 # Note: These imports will be added as we implement the classes
 from .graph import Graph
+from .tree import Tree
 
 __all__ = [
     # Core data structures (to be uncommented as implemented)
     "Graph",
-    # "Tree",
+    "Tree",
     # Algorithms (to be uncommented as implemented)
     # "bfs",
     # "dfs",

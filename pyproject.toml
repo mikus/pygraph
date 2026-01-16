@@ -414,7 +414,7 @@ line-length = 120
 target-version = "py314"
 
 # Rule categories to enable
-select = [
+lint.select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
     "F",   # pyflakes
@@ -428,13 +428,13 @@ select = [
 ]
 
 # Rules to ignore
-ignore = [
+lint.ignore = [
     "E203", # whitespace before ':' (conflicts with Black)
     "E501", # line too long (handled by Black)
 ]
 
 # Per-file rule ignores
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 # Allow assert statements in tests
 "tests/*" = ["S101"]
 
